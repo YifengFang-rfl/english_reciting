@@ -17,7 +17,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -64,8 +64,7 @@ class HomeScreen extends StatelessWidget {
           _OptionCard(
             icon: CupertinoIcons.doc_text,
             title: '自定义词典',
-            subtitle: '即将推出…',
-            enabled: false,
+            subtitle: '手动编入或导入英语单词表',
             onTap: onCustom,
           ),
         ],
@@ -79,37 +78,27 @@ class _OptionCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final bool enabled;
 
   const _OptionCard({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: enabled ? onTap : null,
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: enabled
-              ? CupertinoColors.secondarySystemBackground.resolveFrom(context)
-              : CupertinoColors.systemGrey6,
+          color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 36,
-              color: enabled
-                  ? CupertinoColors.activeBlue
-                  : CupertinoColors.systemGrey3,
-            ),
+            Icon(icon, size: 36, color: CupertinoColors.activeBlue),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -117,30 +106,25 @@ class _OptionCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: enabled ? null : CupertinoColors.systemGrey,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
-                      color: enabled
-                          ? CupertinoColors.secondaryLabel
-                          : CupertinoColors.systemGrey3,
+                      color: CupertinoColors.secondaryLabel,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(
+            const Icon(
               CupertinoIcons.chevron_right,
-              color: enabled
-                  ? CupertinoColors.systemGrey3
-                  : CupertinoColors.systemGrey5,
+              color: CupertinoColors.systemGrey3,
             ),
           ],
         ),

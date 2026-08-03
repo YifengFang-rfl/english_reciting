@@ -1,18 +1,21 @@
 import 'package:flutter/cupertino.dart';
-import '../models/word_pair.dart';
+import '../models/cart.dart';
+import '../services/cart_service.dart';
 import '../services/vocabulary_service.dart';
 
 /// 课本/单元选择页 —— 支持多选、连续选、随机抽取
 class BookSelectionScreen extends StatefulWidget {
   final VocabularyService vocab;
+  final CartService cart;
   final void Function(String book, String unit) onEnterUnit;
-  final void Function(List<WordEntry> words) onStartDictation;
+  final VoidCallback onRandomExtract;
 
   const BookSelectionScreen({
     super.key,
     required this.vocab,
+    required this.cart,
     required this.onEnterUnit,
-    required this.onStartDictation,
+    required this.onRandomExtract,
   });
 
   @override
@@ -20,37 +23,58 @@ class BookSelectionScreen extends StatefulWidget {
 }
 
 class _BookSelectionScreenState extends State<BookSelectionScreen> {
-  final _randomController = TextEditingController();
-  bool _randomMode = false;
   final _expandedBooks = <String>{}; // 记录展开的课本
 
   VocabularyService get _v => widget.vocab;
 
-  @override
-  void dispose() {
-    _randomController.dispose();
-    super.dispose();
-  }
-
   void _refresh() => setState(() {});
 
-  void _start() {
-    List<WordEntry> words;
-    if (_randomMode) {
-      final n = int.tryParse(_randomController.text.trim()) ?? 0;
-      if (n <= 0) return;
-      words = _v.randomPick(n);
-    } else {
-      words = _v.selectedWords;
-    }
-    if (words.isEmpty) return;
-    widget.onStartDictation(words);
+  bool _bookFullySelected(String book) =>
+      _v.wordsOfBook(book).every((w) => widget.cart.contains(w));
+
+  bool _unitFully(String book, String unit) =>
+      _v.wordsOfUnit(book, unit).every((w) => widget.cart.contains(w));
+
+  bool _unitPartial(String book, String unit) {
+    final ws = _v.wordsOfUnit(book, unit);
+    final n = ws.where((w) => widget.cart.contains(w)).length;
+    return n > 0 && n < ws.length;
   }
+
+  int _unitSelCount(String book, String unit) =>
+      _v.wordsOfUnit(book, unit).where((w) => widget.cart.contains(w)).length;
+
+  void _toggleUnit(String book, String unit) {
+    final ws = _v.wordsOfUnit(book, unit);
+    if (_unitFully(book, unit)) {
+      widget.cart.removeAll(ws);
+    } else {
+      widget.cart.addAll(ws, CartSource.textbook);
+    }
+    _refresh();
+  }
+
+  void _toggleBook(String book) {
+    final ws = _v.wordsOfBook(book);
+    if (_bookFullySelected(book)) {
+      widget.cart.removeAll(ws);
+    } else {
+      widget.cart.addAll(ws, CartSource.textbook);
+    }
+    _refresh();
+  }
+
+  /// 全选：把所有课本的单词加入购物车
+  void _selectAllBooks() =>
+      widget.cart.addAll(_v.allWords, CartSource.textbook);
+
+  /// 取消：移除所有课本来源的单词（保留错词本/随机抽取）
+  void _clearTextbook() => widget.cart.clearSource(CartSource.textbook);
 
   @override
   Widget build(BuildContext context) {
     final books = _v.books;
-    final totalSel = _v.selectedWordCount;
+    final totalSel = widget.cart.count;
 
     return Column(
       children: [
@@ -78,7 +102,7 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 minimumSize: Size.zero,
                 onPressed: () {
-                  _v.selectAllUnits(true);
+                  _selectAllBooks();
                   _refresh();
                 },
                 child: const Text('全选', style: TextStyle(fontSize: 13)),
@@ -87,7 +111,7 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 minimumSize: Size.zero,
                 onPressed: () {
-                  _v.selectAllUnits(false);
+                  _clearTextbook();
                   _refresh();
                 },
                 child: const Text('取消', style: TextStyle(fontSize: 13)),
@@ -104,7 +128,7 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
             itemBuilder: (ctx, bookIdx) {
               final book = books[bookIdx];
               final units = _v.unitsOfBook(book);
-              final fullySel = _v.isBookFullySelected(book);
+              final fullySel = _bookFullySelected(book);
               final expanded = _expandedBooks.contains(book);
 
               return Padding(
@@ -126,22 +150,16 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
                         totalWords: units.fold(0, (s, u) => s + u.wordCount),
                         fullySelected: fullySel,
                         expanded: expanded,
-                        onToggle: () {
-                          _v.toggleBook(book);
-                          _refresh();
-                        },
+                        onToggle: () => _toggleBook(book),
                       ),
                     ),
                     if (expanded) ...[
                       const SizedBox(height: 4),
                       ...units.asMap().entries.map((e) {
                         final u = e.value;
-                        final fully = _v.isUnitFullySelected(book, u.unit);
-                        final partial = _v.isUnitPartiallySelected(
-                          book,
-                          u.unit,
-                        );
-                        final selCount = _v.selectedInUnit(book, u.unit);
+                        final fully = _unitFully(book, u.unit);
+                        final partial = _unitPartial(book, u.unit);
+                        final selCount = _unitSelCount(book, u.unit);
 
                         IconData icon;
                         if (fully) {
@@ -178,10 +196,7 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
                             child: Row(
                               children: [
                                 GestureDetector(
-                                  onTap: () {
-                                    _v.toggleUnit(book, u.unit);
-                                    _refresh();
-                                  },
+                                  onTap: () => _toggleUnit(book, u.unit),
                                   child: Icon(
                                     icon,
                                     size: 20,
@@ -249,55 +264,44 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           child: SafeArea(
             top: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    CupertinoSwitch(
-                      value: _randomMode,
-                      onChanged: (v) => setState(() => _randomMode = v),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text('随机抽取', style: TextStyle(fontSize: 14)),
-                    const Spacer(),
-                    if (_randomMode) ...[
-                      SizedBox(
-                        width: 60,
-                        child: CupertinoTextField(
-                          controller: _randomController,
-                          placeholder: '数量',
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 6,
-                            horizontal: 8,
-                          ),
-                          style: const TextStyle(fontSize: 14),
+                // 进入随机抽取页面
+                CupertinoButton(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  color: CupertinoColors.activeBlue.withAlpha(20),
+                  borderRadius: BorderRadius.circular(10),
+                  onPressed: widget.onRandomExtract,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        CupertinoIcons.shuffle,
+                        size: 16,
+                        color: CupertinoColors.activeBlue,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '随机抽取',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: CupertinoColors.activeBlue,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Text(' 词  ', style: TextStyle(fontSize: 14)),
                     ],
-                    Text(
-                      '共 $totalSel 词',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                CupertinoButton.filled(
-                  onPressed:
-                      (_v.hasSelection ||
-                          (_randomMode &&
-                              (int.tryParse(_randomController.text.trim()) ??
-                                      0) >
-                                  0))
-                      ? _start
-                      : null,
-                  child: Text(_randomMode ? '随机抽取并开始' : '开始默写（$totalSel 词）'),
+                const Spacer(),
+                Text(
+                  '共 $totalSel 词',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),

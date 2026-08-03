@@ -1,18 +1,22 @@
 import 'package:flutter/cupertino.dart';
+import '../models/cart.dart';
 import '../models/word_pair.dart';
+import '../services/cart_service.dart';
 import '../services/vocabulary_service.dart';
 
-/// 单元详情页 —— 逐词选择/取消，切换默写方向
+/// 单元详情页 —— 像点菜一样选词：点单词 = 加入购物车
 class UnitDetailScreen extends StatefulWidget {
   final VocabularyService vocab;
   final String book;
   final String unit;
+  final CartService cart;
 
   const UnitDetailScreen({
     super.key,
     required this.vocab,
     required this.book,
     required this.unit,
+    required this.cart,
   });
 
   @override
@@ -32,14 +36,22 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
 
   void _refresh() => setState(() {});
 
-  int get _selCount => _words.where((w) => w.selected).length;
+  /// 本单元已加入购物车的单词数
+  int get _selCount => _words.where((w) => widget.cart.contains(w)).length;
+
+  /// 将本单元所有单词加入购物车
+  void _addAllToCart() => widget.cart.addAll(_words, CartSource.textbook);
+
+  /// 将本单元所有单词移出购物车
+  void _removeAllFromCart() => widget.cart.removeAll(_words);
 
   @override
   Widget build(BuildContext context) {
-    final allSel = _words.every((w) => w.selected);
+    final allSel = _words.every((w) => widget.cart.contains(w));
     final allCnToEn = _words.every(
       (w) => w.direction == DictateDirection.cnToEn,
     );
+    final selCount = _selCount;
 
     return Column(
       children: [
@@ -52,8 +64,10 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 minimumSize: Size.zero,
                 onPressed: () {
-                  for (final w in _words) {
-                    w.selected = !allSel;
+                  if (allSel) {
+                    _removeAllFromCart();
+                  } else {
+                    _addAllToCart();
                   }
                   _refresh();
                 },
@@ -83,10 +97,8 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      allCnToEn
-                          ? CupertinoIcons.arrow_2_squarepath
-                          : CupertinoIcons.arrow_2_squarepath,
+                    const Icon(
+                      CupertinoIcons.arrow_2_squarepath,
                       size: 14,
                       color: CupertinoColors.activeBlue,
                     ),
@@ -103,7 +115,7 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
               ),
               const Spacer(),
               Text(
-                '$_selCount/${_words.length} 词',
+                '$selCount/${_words.length} 词',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -113,104 +125,141 @@ class _UnitDetailScreenState extends State<UnitDetailScreen> {
           ),
         ),
 
-        // 单词列表
+        // 单词菜单 —— 点一下就像点菜一样加入购物车
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             itemCount: _words.length,
             itemBuilder: (_, i) {
               final w = _words[i];
               final isCnToEn = w.direction == DictateDirection.cnToEn;
+              final inCart = widget.cart.contains(w);
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.secondarySystemBackground
-                        .resolveFrom(context),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: w.selected
-                          ? CupertinoColors.activeBlue.withAlpha(60)
-                          : CupertinoColors.systemGrey5,
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (inCart) {
+                    widget.cart.removeWord(w);
+                  } else {
+                    widget.cart.add(w, CartSource.textbook);
+                  }
+                  _refresh();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          w.selected = !w.selected;
-                          _refresh();
-                        },
-                        child: Icon(
-                          w.selected
-                              ? CupertinoIcons.checkmark_circle_fill
-                              : CupertinoIcons.circle,
-                          size: 20,
-                          color: w.selected
-                              ? CupertinoColors.activeBlue
-                              : CupertinoColors.systemGrey4,
-                        ),
+                    decoration: BoxDecoration(
+                      color: inCart
+                          ? CupertinoColors.activeBlue.withAlpha(14)
+                          : CupertinoColors.secondarySystemBackground
+                                .resolveFrom(context),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: inCart
+                            ? CupertinoColors.activeBlue.withAlpha(90)
+                            : CupertinoColors.systemGrey5,
+                        width: inCart ? 1.5 : 1,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              w.english,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: w.selected
-                                    ? null
-                                    : CupertinoColors.systemGrey,
-                              ),
-                            ),
-                            Text(
-                              w.chinese,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: w.selected
-                                    ? CupertinoColors.secondaryLabel
-                                    : CupertinoColors.systemGrey3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      CupertinoButton(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        minimumSize: Size.zero,
-                        color: isCnToEn
-                            ? CupertinoColors.activeOrange.withAlpha(40)
-                            : CupertinoColors.activeBlue.withAlpha(40),
-                        borderRadius: BorderRadius.circular(6),
-                        onPressed: () {
-                          w.direction = isCnToEn
-                              ? DictateDirection.enToCn
-                              : DictateDirection.cnToEn;
-                          _refresh();
-                        },
-                        child: Text(
-                          isCnToEn ? '默英文' : '默中文',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isCnToEn
-                                ? CupertinoColors.activeOrange
-                                : CupertinoColors.activeBlue,
+                    ),
+                    child: Row(
+                      children: [
+                        // 点菜状态图标：已点 = 对勾，未点 = 加号
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          transitionBuilder: (child, anim) =>
+                              ScaleTransition(scale: anim, child: child),
+                          child: Icon(
+                            inCart
+                                ? CupertinoIcons.checkmark_circle_fill
+                                : CupertinoIcons.plus_circle,
+                            key: ValueKey<bool>(inCart),
+                            size: 22,
+                            color: inCart
+                                ? CupertinoColors.activeBlue
+                                : CupertinoColors.systemGrey4,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                w.english,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: inCart
+                                      ? null
+                                      : CupertinoColors.systemGrey,
+                                ),
+                              ),
+                              Text(
+                                w.chinese,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: inCart
+                                      ? CupertinoColors.secondaryLabel
+                                      : CupertinoColors.systemGrey3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (inCart)
+                          Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.activeBlue,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              '已点',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: CupertinoColors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          color: isCnToEn
+                              ? CupertinoColors.activeOrange.withAlpha(40)
+                              : CupertinoColors.activeBlue.withAlpha(40),
+                          borderRadius: BorderRadius.circular(6),
+                          onPressed: () {
+                            w.direction = isCnToEn
+                                ? DictateDirection.enToCn
+                                : DictateDirection.cnToEn;
+                            _refresh();
+                          },
+                          child: Text(
+                            isCnToEn ? '默英文' : '默中文',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isCnToEn
+                                  ? CupertinoColors.activeOrange
+                                  : CupertinoColors.activeBlue,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

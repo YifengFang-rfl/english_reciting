@@ -1,16 +1,20 @@
 import 'package:flutter/cupertino.dart';
+import '../models/cart.dart';
+import '../services/cart_service.dart';
 import '../services/wrong_word_service.dart';
 import '../services/tts_service.dart';
 import '../screens/player_screen.dart';
 
-/// 错词本页面 —— 查看/管理错词，可批量移除或重新默写
+/// 错词本页面 —— 查看/管理错词，可加入购物车、批量移除或重新默写
 class WrongWordScreen extends StatefulWidget {
   final WrongWordService wrongWordService;
+  final CartService cart;
   final TtsService tts;
 
   const WrongWordScreen({
     super.key,
     required this.wrongWordService,
+    required this.cart,
     required this.tts,
   });
 
@@ -94,6 +98,21 @@ class _WrongWordScreenState extends State<WrongWordScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 minimumSize: Size.zero,
                 onPressed: () {
+                  widget.cart.addAll(words, CartSource.wrongWord);
+                  _refresh();
+                },
+                child: const Text(
+                  '全部加购',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: CupertinoColors.activeBlue,
+                  ),
+                ),
+              ),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                minimumSize: Size.zero,
+                onPressed: () {
                   widget.wrongWordService.clear();
                   _refresh();
                 },
@@ -145,6 +164,50 @@ class _WrongWordScreenState extends State<WrongWordScreen> {
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: CupertinoColors.secondaryLabel,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // 加入购物车 / 已加入
+                      CupertinoButton(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        color: widget.cart.contains(w)
+                            ? CupertinoColors.activeBlue.withAlpha(40)
+                            : null,
+                        borderRadius: BorderRadius.circular(6),
+                        onPressed: () {
+                          if (widget.cart.contains(w)) {
+                            widget.cart.removeWord(w);
+                          } else {
+                            widget.cart.add(w, CartSource.wrongWord);
+                          }
+                          _refresh();
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              widget.cart.contains(w)
+                                  ? CupertinoIcons.checkmark_circle_fill
+                                  : CupertinoIcons.plus_circle,
+                              size: 16,
+                              color: widget.cart.contains(w)
+                                  ? CupertinoColors.activeBlue
+                                  : CupertinoColors.systemGrey3,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.cart.contains(w) ? '已加购' : '加购',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: widget.cart.contains(w)
+                                    ? CupertinoColors.activeBlue
+                                    : CupertinoColors.systemGrey,
                               ),
                             ),
                           ],

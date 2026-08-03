@@ -1,15 +1,21 @@
 import 'package:flutter/cupertino.dart';
 
 import 'models/word_pair.dart';
+import 'services/cart_service.dart';
+import 'services/custom_dict_service.dart';
 import 'services/tts_service.dart';
 import 'services/vocabulary_service.dart';
 import 'services/wrong_word_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/book_selection_screen.dart';
+import 'screens/custom_dict_detail_screen.dart';
+import 'screens/custom_dict_screen.dart';
+import 'screens/random_extract_screen.dart';
 import 'screens/unit_detail_screen.dart';
 import 'screens/player_screen.dart';
 import 'screens/dictation_result_screen.dart';
 import 'screens/wrong_word_screen.dart';
+import 'widgets/cart_widgets.dart';
 
 void main() => runApp(const DictationApp());
 
@@ -21,7 +27,17 @@ class DictationApp extends StatelessWidget {
       const CupertinoApp(title: '英语默写助手', home: DictationCoordinator());
 }
 
-enum AppPhase { home, bookSelection, unitDetail, player, result, wrongWords }
+enum AppPhase {
+  home,
+  bookSelection,
+  unitDetail,
+  randomExtract,
+  customDict,
+  customDictDetail,
+  player,
+  result,
+  wrongWords,
+}
 
 class DictationCoordinator extends StatefulWidget {
   const DictationCoordinator({super.key});
@@ -34,11 +50,14 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   final _tts = TtsService();
   final _vocab = VocabularyService();
   final _wrong = WrongWordService();
+  final _cart = CartService();
+  final _custom = CustomDictService();
   AppPhase _phase = AppPhase.home;
   List<WordEntry> _dictationWords = [];
   bool _ready = false;
   String _detailBook = '';
   String _detailUnit = '';
+  String _detailDictName = '';
 
   @override
   void initState() {
@@ -47,6 +66,7 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
       _vocab.load().then((_) {
         if (mounted) setState(() => _ready = true);
       });
+      _custom.load();
     });
   }
 
@@ -57,8 +77,19 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   }
 
   void _goBuiltIn() => setState(() => _phase = AppPhase.bookSelection);
-  void _goCustom() {}
+  void _goCustom() => setState(() => _phase = AppPhase.customDict);
   void _goWrongWords() => setState(() => _phase = AppPhase.wrongWords);
+  void _goRandomExtract() => setState(() => _phase = AppPhase.randomExtract);
+
+  void _openCustomDict(String name) {
+    _detailDictName = name;
+    setState(() => _phase = AppPhase.customDictDetail);
+  }
+
+  void _backToCustomDictList() {
+    _tts.stop();
+    setState(() => _phase = AppPhase.customDict);
+  }
 
   void _enterUnit(String book, String unit) {
     _detailBook = book;
@@ -72,21 +103,38 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   }
 
   void _startDictation(List<WordEntry> words) {
+    if (words.isEmpty) return;
     _dictationWords = words;
     setState(() => _phase = AppPhase.player);
+  }
+
+  /// 打开全局购物车
+  void _openCart() {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => CartSheet(
+        items: _cart.items,
+        onRemove: (item) {
+          _cart.removeItem(item);
+          setState(() {});
+        },
+        onCheckout: () {
+          Navigator.of(ctx).pop();
+          _startDictation(_cart.words);
+        },
+        onClearAll: _cart.clear,
+      ),
+    );
   }
 
   void _onPlayerComplete() {
     setState(() => _phase = AppPhase.result);
   }
 
-  void _reset() {
+  /// 返回首页（保留购物车，方便继续从错词本等加入单词）
+  void _goHome() {
     _tts.stop();
-    _vocab.resetSelection();
-    setState(() {
-      _phase = AppPhase.home;
-      _dictationWords = [];
-    });
+    setState(() => _phase = AppPhase.home);
   }
 
   String get _title {
@@ -97,6 +145,12 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
         return '选择课本和单元';
       case AppPhase.unitDetail:
         return _detailUnit;
+      case AppPhase.randomExtract:
+        return '随机抽取';
+      case AppPhase.customDict:
+        return '自定义词典';
+      case AppPhase.customDictDetail:
+        return _detailDictName;
       case AppPhase.player:
         return '默写中 ${(_dictationWords.isNotEmpty ? '1' : '0')}/${_dictationWords.length}';
       case AppPhase.result:
@@ -111,12 +165,18 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text(_title),
-        leading: _phase == AppPhase.unitDetail
+        leading:
+            _phase == AppPhase.unitDetail || _phase == AppPhase.randomExtract
             ? GestureDetector(
                 onTap: _backToBookSelection,
                 child: const Icon(CupertinoIcons.chevron_back),
               )
-            : _phase == AppPhase.wrongWords
+            : _phase == AppPhase.customDictDetail
+            ? GestureDetector(
+                onTap: _backToCustomDictList,
+                child: const Icon(CupertinoIcons.chevron_back),
+              )
+            : _phase == AppPhase.customDict || _phase == AppPhase.wrongWords
             ? GestureDetector(
                 onTap: () => setState(() => _phase = AppPhase.home),
                 child: const Icon(CupertinoIcons.chevron_back),
@@ -125,14 +185,44 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
         trailing:
             _phase == AppPhase.bookSelection ||
                 _phase == AppPhase.unitDetail ||
+                _phase == AppPhase.randomExtract ||
+                _phase == AppPhase.customDict ||
+                _phase == AppPhase.customDictDetail ||
                 _phase == AppPhase.result
             ? GestureDetector(
-                onTap: _reset,
+                onTap: _goHome,
                 child: const Icon(CupertinoIcons.home),
               )
             : null,
       ),
-      child: SafeArea(child: _buildBody()),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(child: _buildBody()),
+            // 全局购物车栏：有选词后才显示（首页 / 选书 / 选词 / 错词本）
+            ListenableBuilder(
+              listenable: _cart,
+              builder: (context, _) {
+                final showCart =
+                    _cart.count > 0 &&
+                    (_phase == AppPhase.home ||
+                        _phase == AppPhase.bookSelection ||
+                        _phase == AppPhase.unitDetail ||
+                        _phase == AppPhase.randomExtract ||
+                        _phase == AppPhase.customDict ||
+                        _phase == AppPhase.customDictDetail ||
+                        _phase == AppPhase.wrongWords);
+                if (!showCart) return const SizedBox.shrink();
+                return CartBar(
+                  count: _cart.count,
+                  onOpenCart: _openCart,
+                  onCheckout: () => _startDictation(_cart.words),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -150,14 +240,26 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
       case AppPhase.bookSelection:
         return BookSelectionScreen(
           vocab: _vocab,
+          cart: _cart,
           onEnterUnit: _enterUnit,
-          onStartDictation: _startDictation,
+          onRandomExtract: _goRandomExtract,
         );
       case AppPhase.unitDetail:
         return UnitDetailScreen(
           vocab: _vocab,
+          cart: _cart,
           book: _detailBook,
           unit: _detailUnit,
+        );
+      case AppPhase.randomExtract:
+        return RandomExtractScreen(vocab: _vocab, cart: _cart);
+      case AppPhase.customDict:
+        return CustomDictScreen(service: _custom, onOpenDict: _openCustomDict);
+      case AppPhase.customDictDetail:
+        return CustomDictDetailScreen(
+          service: _custom,
+          cart: _cart,
+          dictName: _detailDictName,
         );
       case AppPhase.player:
         return PlayerScreen(
@@ -171,10 +273,14 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
           words: _dictationWords,
           wrongWordService: _wrong,
           onBackToSelect: _backToBookSelection,
-          onBackHome: _reset,
+          onBackHome: _goHome,
         );
       case AppPhase.wrongWords:
-        return WrongWordScreen(wrongWordService: _wrong, tts: _tts);
+        return WrongWordScreen(
+          wrongWordService: _wrong,
+          cart: _cart,
+          tts: _tts,
+        );
     }
   }
 }

@@ -58,57 +58,15 @@ class VocabularyService {
       _bookUnits.where((u) => u.book == book).toList();
   List<WordEntry> wordsOfUnit(String book, String unit) =>
       _allWords.where((w) => w.book == book && w.unit == unit).toList();
+  List<WordEntry> get allWords => List.unmodifiable(_allWords);
 
-  bool isUnitFullySelected(String book, String unit) =>
-      wordsOfUnit(book, unit).every((w) => w.selected);
-  bool isUnitPartiallySelected(String book, String unit) {
-    final ws = wordsOfUnit(book, unit);
-    final n = ws.where((w) => w.selected).length;
-    return n > 0 && n < ws.length;
-  }
+  List<WordEntry> wordsOfBook(String book) =>
+      _allWords.where((w) => w.book == book).toList();
 
-  int selectedInUnit(String book, String unit) =>
-      wordsOfUnit(book, unit).where((w) => w.selected).length;
-
-  void toggleUnit(String book, String unit) {
-    final select = !isUnitFullySelected(book, unit);
-    for (final w in wordsOfUnit(book, unit)) {
-      w.selected = select;
-    }
-  }
-
-  void toggleBook(String book) {
-    final select = !_allWords
-        .where((w) => w.book == book)
-        .every((w) => w.selected);
-    for (final w in _allWords.where((w) => w.book == book)) {
-      w.selected = select;
-    }
-  }
-
-  void selectAllUnits(bool selected) {
-    for (final w in _allWords) {
-      w.selected = selected;
-    }
-  }
-
-  bool isBookFullySelected(String book) =>
-      _allWords.where((w) => w.book == book).every((w) => w.selected);
-
-  List<WordEntry> get selectedWords =>
-      _allWords.where((w) => w.selected).toList();
-  int get selectedWordCount => selectedWords.length;
-  bool get hasSelection => selectedWords.isNotEmpty;
-
+  /// 从全部单词中随机抽取
   List<WordEntry> randomPick(int count) {
-    final pool = selectedWords.toList();
+    final pool = _allWords.toList();
     pool.shuffle(Random());
     return pool.take(min(count, pool.length)).toList();
-  }
-
-  void resetSelection() {
-    for (final w in _allWords) {
-      w.selected = false;
-    }
   }
 }

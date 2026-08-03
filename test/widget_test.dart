@@ -1,17 +1,28 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:english_reciting/main.dart';
+import 'package:english_reciting/screens/home_screen.dart';
+
+void _noop() {}
 
 void main() {
-  testWidgets('App renders input screen by default', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const DictationApp());
+  testWidgets('Home screen renders entry options', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: HomeScreen(
+          onBuiltIn: _noop,
+          onCustom: _noop,
+          onWrongWords: _noop,
+        ),
+      ),
+    );
 
-    // 默认进入输入页面，显示标题
-    expect(find.text('输入单词'), findsOneWidget);
+    // 显示标题
+    expect(find.text('英语默写助手'), findsWidgets);
 
-    // 显示输入提示
-    expect(find.text('下一步：选择默写方向'), findsOneWidget);
+    // 显示三个入口：教材 / 错词本 / 自定义词典
+    expect(find.text('人教版教材'), findsOneWidget);
+    expect(find.text('错词本'), findsOneWidget);
+    expect(find.text('自定义词典'), findsOneWidget);
   });
 }

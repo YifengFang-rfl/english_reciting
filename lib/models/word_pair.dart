@@ -36,12 +36,11 @@ class WordPair {
   }
 }
 
-// ─── 可被选中/取消的单词条目 ──────────────────────────────
+// ─── 带课本/单元信息的单词条目 ────────────────────────────
 
 class WordEntry extends WordPair {
   final String book;
   final String unit;
-  bool selected;
 
   WordEntry({
     required this.book,
@@ -49,7 +48,6 @@ class WordEntry extends WordPair {
     required super.english,
     required super.chinese,
     super.direction = DictateDirection.cnToEn,
-    this.selected = false,
   });
 
   factory WordEntry.fromVocabularyJson(Map<String, dynamic> json) {
