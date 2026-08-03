@@ -14,8 +14,10 @@ import 'screens/random_extract_screen.dart';
 import 'screens/unit_detail_screen.dart';
 import 'screens/player_screen.dart';
 import 'screens/dictation_result_screen.dart';
+import 'screens/wrong_book_detail_screen.dart';
 import 'screens/wrong_word_screen.dart';
 import 'widgets/cart_widgets.dart';
+import 'widgets/random_extract_button.dart';
 
 void main() => runApp(const DictationApp());
 
@@ -37,6 +39,7 @@ enum AppPhase {
   player,
   result,
   wrongWords,
+  wrongBookDetail,
 }
 
 class DictationCoordinator extends StatefulWidget {
@@ -58,6 +61,9 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   String _detailBook = '';
   String _detailUnit = '';
   String _detailDictName = '';
+  String _detailWrongBook = '';
+  ExtractSource _randomDefaultSource = ExtractSource.textbook;
+  AppPhase _randomExtractOrigin = AppPhase.bookSelection;
 
   @override
   void initState() {
@@ -67,6 +73,7 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
         if (mounted) setState(() => _ready = true);
       });
       _custom.load();
+      _wrong.load();
     });
   }
 
@@ -79,7 +86,39 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   void _goBuiltIn() => setState(() => _phase = AppPhase.bookSelection);
   void _goCustom() => setState(() => _phase = AppPhase.customDict);
   void _goWrongWords() => setState(() => _phase = AppPhase.wrongWords);
-  void _goRandomExtract() => setState(() => _phase = AppPhase.randomExtract);
+
+  /// 进入某个错词本详情
+  void _openWrongBook(String name) {
+    _detailWrongBook = name;
+    setState(() => _phase = AppPhase.wrongBookDetail);
+  }
+
+  /// 从错词本详情返回错词本列表
+  void _backToWrongBooks() {
+    _tts.stop();
+    setState(() => _phase = AppPhase.wrongWords);
+  }
+
+  void _goRandomExtract() =>
+      _goRandomExtractWith(ExtractSource.textbook, AppPhase.bookSelection);
+
+  /// 进入随机抽取页并设置默认来源与返回目标
+  void _goRandomExtractWith(ExtractSource source, AppPhase origin) {
+    _randomDefaultSource = source;
+    _randomExtractOrigin = origin;
+    setState(() => _phase = AppPhase.randomExtract);
+  }
+
+  void _goRandomFromWrong() =>
+      _goRandomExtractWith(ExtractSource.wrongWord, AppPhase.wrongWords);
+  void _goRandomFromCustom() =>
+      _goRandomExtractWith(ExtractSource.customDict, AppPhase.customDict);
+
+  /// 从随机抽取页返回进入前的界面
+  void _backFromRandomExtract() {
+    _tts.stop();
+    setState(() => _phase = _randomExtractOrigin);
+  }
 
   void _openCustomDict(String name) {
     _detailDictName = name;
@@ -157,6 +196,8 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
         return '默写完成';
       case AppPhase.wrongWords:
         return '错词本';
+      case AppPhase.wrongBookDetail:
+        return _detailWrongBook;
     }
   }
 
@@ -165,8 +206,17 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text(_title),
-        leading:
-            _phase == AppPhase.unitDetail || _phase == AppPhase.randomExtract
+        leading: _phase == AppPhase.bookSelection
+            ? GestureDetector(
+                onTap: _goHome,
+                child: const Icon(CupertinoIcons.chevron_back),
+              )
+            : _phase == AppPhase.randomExtract
+            ? GestureDetector(
+                onTap: _backFromRandomExtract,
+                child: const Icon(CupertinoIcons.chevron_back),
+              )
+            : _phase == AppPhase.unitDetail
             ? GestureDetector(
                 onTap: _backToBookSelection,
                 child: const Icon(CupertinoIcons.chevron_back),
@@ -176,23 +226,23 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
                 onTap: _backToCustomDictList,
                 child: const Icon(CupertinoIcons.chevron_back),
               )
+            : _phase == AppPhase.wrongBookDetail
+            ? GestureDetector(
+                onTap: _backToWrongBooks,
+                child: const Icon(CupertinoIcons.chevron_back),
+              )
             : _phase == AppPhase.customDict || _phase == AppPhase.wrongWords
             ? GestureDetector(
                 onTap: () => setState(() => _phase = AppPhase.home),
                 child: const Icon(CupertinoIcons.chevron_back),
               )
             : null,
-        trailing:
-            _phase == AppPhase.bookSelection ||
-                _phase == AppPhase.unitDetail ||
-                _phase == AppPhase.randomExtract ||
-                _phase == AppPhase.customDict ||
-                _phase == AppPhase.customDictDetail ||
-                _phase == AppPhase.result
-            ? GestureDetector(
-                onTap: _goHome,
-                child: const Icon(CupertinoIcons.home),
-              )
+        trailing: _phase == AppPhase.bookSelection
+            ? RandomExtractButton(onPressed: _goRandomExtract)
+            : _phase == AppPhase.customDict
+            ? RandomExtractButton(onPressed: _goRandomFromCustom)
+            : _phase == AppPhase.wrongWords
+            ? RandomExtractButton(onPressed: _goRandomFromWrong)
             : null,
       ),
       child: SafeArea(
@@ -211,7 +261,8 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
                         _phase == AppPhase.randomExtract ||
                         _phase == AppPhase.customDict ||
                         _phase == AppPhase.customDictDetail ||
-                        _phase == AppPhase.wrongWords);
+                        _phase == AppPhase.wrongWords ||
+                        _phase == AppPhase.wrongBookDetail);
                 if (!showCart) return const SizedBox.shrink();
                 return CartBar(
                   count: _cart.count,
@@ -242,7 +293,6 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
           vocab: _vocab,
           cart: _cart,
           onEnterUnit: _enterUnit,
-          onRandomExtract: _goRandomExtract,
         );
       case AppPhase.unitDetail:
         return UnitDetailScreen(
@@ -252,7 +302,13 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
           unit: _detailUnit,
         );
       case AppPhase.randomExtract:
-        return RandomExtractScreen(vocab: _vocab, cart: _cart);
+        return RandomExtractScreen(
+          vocab: _vocab,
+          custom: _custom,
+          wrong: _wrong,
+          cart: _cart,
+          defaultSource: _randomDefaultSource,
+        );
       case AppPhase.customDict:
         return CustomDictScreen(service: _custom, onOpenDict: _openCustomDict);
       case AppPhase.customDictDetail:
@@ -278,8 +334,13 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
       case AppPhase.wrongWords:
         return WrongWordScreen(
           wrongWordService: _wrong,
+          onOpenBook: _openWrongBook,
+        );
+      case AppPhase.wrongBookDetail:
+        return WrongBookDetailScreen(
+          wrongWordService: _wrong,
           cart: _cart,
-          tts: _tts,
+          bookName: _detailWrongBook,
         );
     }
   }

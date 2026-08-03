@@ -14,7 +14,7 @@ class CartBar extends StatelessWidget {
     required this.count,
     required this.onOpenCart,
     required this.onCheckout,
-    this.hint = '点击购物车查看 / 移除',
+    this.hint = '点击默写单词表查看 / 移除',
   });
 
   @override
@@ -44,7 +44,7 @@ class CartBar extends StatelessWidget {
                       color: CupertinoColors.activeBlue,
                     ),
                     child: const Icon(
-                      CupertinoIcons.cart_fill,
+                      CupertinoIcons.list_bullet,
                       color: CupertinoColors.white,
                       size: 22,
                     ),
@@ -64,7 +64,7 @@ class CartBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '购物车 · 共 $count 词',
+                    '默写单词表 · 共 $count 词',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -162,8 +162,8 @@ class _CartSheetState extends State<CartSheet> {
     final ok = await showCupertinoDialog<bool>(
       context: context,
       builder: (_) => CupertinoAlertDialog(
-        title: const Text('清空购物车'),
-        content: Text('确定要清空购物车里的 ${_items.length} 个单词吗？'),
+        title: const Text('清空默写单词表'),
+        content: Text('确定要清空默写单词表里的 ${_items.length} 个单词吗？'),
         actions: [
           CupertinoDialogAction(
             child: const Text('取消'),
@@ -228,13 +228,13 @@ class _CartSheetState extends State<CartSheet> {
           Row(
             children: [
               const Icon(
-                CupertinoIcons.cart,
+                CupertinoIcons.list_bullet,
                 size: 18,
                 color: CupertinoColors.activeBlue,
               ),
               const SizedBox(width: 6),
               Text(
-                '购物车（共 $count 词）',
+                '默写单词表（共 $count 词）',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -283,7 +283,7 @@ class _CartSheetState extends State<CartSheet> {
             child: _items.isEmpty
                 ? const Center(
                     child: Text(
-                      '购物车还是空的，去加点单词吧',
+                      '默写单词表还是空的，去加点单词吧',
                       style: TextStyle(
                         fontSize: 13,
                         color: CupertinoColors.secondaryLabel,

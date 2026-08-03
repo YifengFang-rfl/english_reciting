@@ -32,18 +32,97 @@ class _DictationResultScreenState extends State<DictationResultScreen> {
 
   int get _checkedCount => _checked.where((c) => c).length;
 
-  void _addToWrongWords() {
-    for (var i = 0; i < widget.words.length; i++) {
-      if (_checked[i]) {
-        widget.wrongWordService.add(widget.words[i]);
-      }
+  /// 选择要加入的错词本；返回 null 表示取消
+  Future<String?> _pickWrongBook() {
+    final books = widget.wrongWordService.books;
+    return showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('加入错词本'),
+        message: const Text('选择要加入哪个错词本'),
+        actions: [
+          for (final b in books)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, b.name),
+              child: Text('${b.name}（${b.count} 词）'),
+            ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, '__new__'),
+            child: const Text('新建错词本…'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+  }
+
+  /// 新建错词本并返回名称；取消返回 null，重名则直接复用
+  Future<String?> _createBookAndReturnName() async {
+    final nameCtrl = TextEditingController();
+    final result = await showCupertinoDialog<String>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('新建错词本'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoTextField(
+              controller: nameCtrl,
+              placeholder: '错词本名称',
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('取消'),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('创建'),
+            onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
+          ),
+        ],
+      ),
+    );
+    if (result == null || result.isEmpty) return null;
+    if (widget.wrongWordService.find(result) != null) return result;
+    final ok = await widget.wrongWordService.createBook(result);
+    return ok ? result : null;
+  }
+
+  Future<void> _addToWrongWords() async {
+    final service = widget.wrongWordService;
+    String? bookName;
+    if (service.books.isEmpty) {
+      // 还没有错词本，直接进入新建
+      bookName = await _createBookAndReturnName();
+      if (bookName == null) return;
+    } else {
+      final picked = await _pickWrongBook();
+      if (picked == null) return;
+      bookName = picked == '__new__'
+          ? await _createBookAndReturnName()
+          : picked;
+      if (bookName == null) return;
     }
+
+    service.addAllTo(bookName, [
+      for (var i = 0; i < widget.words.length; i++)
+        if (_checked[i]) widget.words[i],
+    ]);
+    if (!mounted) return;
     setState(() {});
     showCupertinoDialog(
       context: context,
       builder: (_) => CupertinoAlertDialog(
         title: const Text('已添加'),
-        content: Text('$_checkedCount 个单词已加入错词本'),
+        content: Text('$_checkedCount 个单词已加入「$bookName」'),
         actions: [
           CupertinoDialogAction(
             child: const Text('好的'),
@@ -82,7 +161,7 @@ class _DictationResultScreenState extends State<DictationResultScreen> {
                   setState(() {});
                 },
                 child: Text(
-                  _checked.every((c) => c) ? '取消全选' : '全选为错词',
+                  _checked.every((c) => c) ? '取消' : '全选为错词',
                   style: const TextStyle(fontSize: 13),
                 ),
               ),

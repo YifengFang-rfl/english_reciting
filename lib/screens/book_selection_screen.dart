@@ -8,14 +8,12 @@ class BookSelectionScreen extends StatefulWidget {
   final VocabularyService vocab;
   final CartService cart;
   final void Function(String book, String unit) onEnterUnit;
-  final VoidCallback onRandomExtract;
 
   const BookSelectionScreen({
     super.key,
     required this.vocab,
     required this.cart,
     required this.onEnterUnit,
-    required this.onRandomExtract,
   });
 
   @override
@@ -31,6 +29,12 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
 
   bool _bookFullySelected(String book) =>
       _v.wordsOfBook(book).every((w) => widget.cart.contains(w));
+
+  bool _bookPartial(String book) {
+    final ws = _v.wordsOfBook(book);
+    final n = ws.where((w) => widget.cart.contains(w)).length;
+    return n > 0 && n < ws.length;
+  }
 
   bool _unitFully(String book, String unit) =>
       _v.wordsOfUnit(book, unit).every((w) => widget.cart.contains(w));
@@ -64,17 +68,22 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
     _refresh();
   }
 
-  /// 全选：把所有课本的单词加入购物车
-  void _selectAllBooks() =>
-      widget.cart.addAll(_v.allWords, CartSource.textbook);
+  /// 全部课本是否都已加入购物车
+  bool get _allBooksSelected =>
+      _v.allWords.every((w) => widget.cart.contains(w));
 
-  /// 取消：移除所有课本来源的单词（保留错词本/随机抽取）
-  void _clearTextbook() => widget.cart.clearSource(CartSource.textbook);
+  /// 全选 / 取消全选：把全部课本单词加入或移出购物车
+  void _toggleAllBooks() {
+    if (_allBooksSelected) {
+      widget.cart.clearSource(CartSource.textbook);
+    } else {
+      widget.cart.addAll(_v.allWords, CartSource.textbook);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final books = _v.books;
-    final totalSel = widget.cart.count;
 
     return Column(
       children: [
@@ -102,19 +111,13 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 minimumSize: Size.zero,
                 onPressed: () {
-                  _selectAllBooks();
+                  _toggleAllBooks();
                   _refresh();
                 },
-                child: const Text('全选', style: TextStyle(fontSize: 13)),
-              ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                minimumSize: Size.zero,
-                onPressed: () {
-                  _clearTextbook();
-                  _refresh();
-                },
-                child: const Text('取消', style: TextStyle(fontSize: 13)),
+                child: Text(
+                  _allBooksSelected ? '取消全选' : '全选',
+                  style: const TextStyle(fontSize: 13),
+                ),
               ),
             ],
           ),
@@ -129,6 +132,7 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
               final book = books[bookIdx];
               final units = _v.unitsOfBook(book);
               final fullySel = _bookFullySelected(book);
+              final partialSel = _bookPartial(book);
               final expanded = _expandedBooks.contains(book);
 
               return Padding(
@@ -149,6 +153,7 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
                         unitCount: units.length,
                         totalWords: units.fold(0, (s, u) => s + u.wordCount),
                         fullySelected: fullySel,
+                        partialSelected: partialSel,
                         expanded: expanded,
                         onToggle: () => _toggleBook(book),
                       ),
@@ -252,61 +257,6 @@ class _BookSelectionScreenState extends State<BookSelectionScreen> {
             },
           ),
         ),
-
-        // 底部区域
-        Container(
-          decoration: BoxDecoration(
-            color: CupertinoColors.secondarySystemBackground.resolveFrom(
-              context,
-            ),
-            border: Border(top: BorderSide(color: CupertinoColors.systemGrey5)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              children: [
-                // 进入随机抽取页面
-                CupertinoButton(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  color: CupertinoColors.activeBlue.withAlpha(20),
-                  borderRadius: BorderRadius.circular(10),
-                  onPressed: widget.onRandomExtract,
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        CupertinoIcons.shuffle,
-                        size: 16,
-                        color: CupertinoColors.activeBlue,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        '随机抽取',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: CupertinoColors.activeBlue,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '共 $totalSel 词',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -317,6 +267,7 @@ class _BookBar extends StatelessWidget {
   final int unitCount;
   final int totalWords;
   final bool fullySelected;
+  final bool partialSelected;
   final bool expanded;
   final VoidCallback onToggle;
 
@@ -325,6 +276,7 @@ class _BookBar extends StatelessWidget {
     required this.unitCount,
     required this.totalWords,
     required this.fullySelected,
+    required this.partialSelected,
     required this.expanded,
     required this.onToggle,
   });
@@ -344,9 +296,11 @@ class _BookBar extends StatelessWidget {
             child: Icon(
               fullySelected
                   ? CupertinoIcons.checkmark_circle_fill
+                  : partialSelected
+                  ? CupertinoIcons.circle_lefthalf_fill
                   : CupertinoIcons.circle,
               size: 20,
-              color: fullySelected
+              color: fullySelected || partialSelected
                   ? CupertinoColors.activeBlue
                   : CupertinoColors.systemGrey3,
             ),

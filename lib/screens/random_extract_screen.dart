@@ -2,17 +2,28 @@ import 'package:flutter/cupertino.dart';
 import '../models/cart.dart';
 import '../models/word_pair.dart';
 import '../services/cart_service.dart';
+import '../services/custom_dict_service.dart';
 import '../services/vocabulary_service.dart';
+import '../services/wrong_word_service.dart';
 
-/// 随机抽取页 —— 抽取一批随机单词，勾选想要的部分加入购物车
+/// 抽取来源类型
+enum ExtractSource { textbook, customDict, wrongWord }
+
+/// 随机抽取页 —— 从课本/自定义词典/错词本随机抽取，勾选想要的部分加入默写单词表
 class RandomExtractScreen extends StatefulWidget {
   final VocabularyService vocab;
+  final CustomDictService custom;
+  final WrongWordService wrong;
   final CartService cart;
+  final ExtractSource defaultSource;
 
   const RandomExtractScreen({
     super.key,
     required this.vocab,
+    required this.custom,
+    required this.wrong,
     required this.cart,
+    this.defaultSource = ExtractSource.textbook,
   });
 
   @override
@@ -22,10 +33,15 @@ class RandomExtractScreen extends StatefulWidget {
 class _RandomExtractScreenState extends State<RandomExtractScreen> {
   final _countController = TextEditingController(text: '20');
   List<WordEntry> _drawn = [];
-  final Set<String> _picked = {}; // 已勾选要加入购物车的英文
+  final Set<String> _picked = {}; // 已勾选要加入默写单词表的英文
 
-  bool _selectAll = true; // 默认从全部课本抽取
-  final Set<String> _selected = {}; // 手动选中的单元 key: "book|unit"
+  late ExtractSource _source = widget.defaultSource;
+
+  bool _selectAll = true; // 课本：默认全部
+  final Set<String> _selected = {}; // 课本：手动选中的单元 key: "book|unit"
+
+  bool _selectAllDicts = true; // 自定义词典：默认全部
+  final Set<String> _selectedDicts = {}; // 自定义词典：选中的词表名
 
   VocabularyService get _v => widget.vocab;
 
@@ -39,30 +55,68 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
 
   /// 当前抽取范围内的单词池
   List<WordEntry> get _pool {
-    if (_selectAll) return _v.allWords;
-    final keys = _selected;
-    return _v.allWords
-        .where((w) => keys.contains('${w.book}|${w.unit}'))
-        .toList();
+    switch (_source) {
+      case ExtractSource.textbook:
+        if (_selectAll) return _v.allWords;
+        final keys = _selected;
+        return _v.allWords
+            .where((w) => keys.contains('${w.book}|${w.unit}'))
+            .toList();
+      case ExtractSource.customDict:
+        final names = _selectAllDicts
+            ? widget.custom.dicts.map((d) => d.name).toSet()
+            : _selectedDicts;
+        return widget.custom.dicts
+            .where((d) => names.contains(d.name))
+            .expand((d) => d.words)
+            .toList();
+      case ExtractSource.wrongWord:
+        return widget.wrong.words.toList();
+    }
   }
 
   int get _poolCount => _pool.length;
-  int get _selectedUnitCount => _selected.length;
 
-  /// 打开抽取范围选择（选择从哪些课本/单元抽取）
+  /// 抽取范围摘要文案
+  String get _rangeSummary {
+    switch (_source) {
+      case ExtractSource.textbook:
+        return _selectAll
+            ? '全部课本 · 共 $_poolCount 词'
+            : '已选 ${_selected.length} 个单元 · 共 $_poolCount 词';
+      case ExtractSource.customDict:
+        return _selectAllDicts
+            ? '全部自定义词典 · 共 $_poolCount 词'
+            : '已选 ${_selectedDicts.length} 个词典 · 共 $_poolCount 词';
+      case ExtractSource.wrongWord:
+        return '错词本 · 共 $_poolCount 词';
+    }
+  }
+
+  /// 打开抽取范围选择（课本/自定义词典/错词本）
   void _openRangePicker() {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (ctx) => _RangePickerSheet(
         vocab: _v,
+        custom: widget.custom,
+        wrong: widget.wrong,
+        source: _source,
         selectAll: _selectAll,
         selected: _selected,
-        onDone: (selectAll, selected) {
+        selectAllDicts: _selectAllDicts,
+        selectedDicts: _selectedDicts,
+        onDone: (source, selectAll, selected, selectAllDicts, selectedDicts) {
           setState(() {
+            _source = source;
             _selectAll = selectAll;
             _selected
               ..clear()
               ..addAll(selected);
+            _selectAllDicts = selectAllDicts;
+            _selectedDicts
+              ..clear()
+              ..addAll(selectedDicts);
             _drawn = [];
             _picked.clear();
           });
@@ -96,8 +150,8 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
     showCupertinoDialog<void>(
       context: context,
       builder: (_) => CupertinoAlertDialog(
-        title: const Text('已加入购物车'),
-        content: Text('${selected.length} 个单词已加入购物车（来源：随机抽取）'),
+        title: const Text('已加入默写单词表'),
+        content: Text('${selected.length} 个单词已加入默写单词表（来源：随机抽取）'),
         actions: [
           CupertinoDialogAction(
             child: const Text('好的'),
@@ -144,9 +198,7 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _selectAll
-                          ? '全部课本 · 共 $_poolCount 词'
-                          : '已选 $_selectedUnitCount 个单元 · 共 $_poolCount 词',
+                      _rangeSummary,
                       style: const TextStyle(
                         fontSize: 12,
                         color: CupertinoColors.secondaryLabel,
@@ -203,7 +255,7 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Text(
             _drawn.isEmpty
-                ? '设置抽取数量后点击「随机抽取」，再勾选想要加入购物车的单词'
+                ? '设置抽取数量后点击「随机抽取」，再勾选想要加入默写单词表的单词'
                 : '已抽取 ${_drawn.length} 词（默认全选），可点击取消勾选',
             style: const TextStyle(
               fontSize: 12,
@@ -327,7 +379,7 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Text(
-                                    '已在购物车',
+                                    '已在默写单词表',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: CupertinoColors.systemGreen,
@@ -365,15 +417,15 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
                       onPressed: _pickedCount > 0 ? _addPickedToCart : null,
                       child: Text(
                         _pickedCount > 0
-                            ? '加入购物车（$_pickedCount 词）'
-                            : '勾选单词后加入购物车',
+                            ? '加入默写单词表（$_pickedCount 词）'
+                            : '勾选单词后加入默写单词表',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '购物车共 $totalInCart 词',
+                    '默写单词表共 $totalInCart 词',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -388,17 +440,34 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
   }
 }
 
-/// 抽取范围选择弹层 —— 选择从哪些课本/单元随机抽取
+/// 抽取范围选择弹层 —— 选择来源（课本/自定义词典/错词本）及范围内的具体项
 class _RangePickerSheet extends StatefulWidget {
   final VocabularyService vocab;
+  final CustomDictService custom;
+  final WrongWordService wrong;
+  final ExtractSource source;
   final bool selectAll;
   final Set<String> selected;
-  final void Function(bool selectAll, Set<String> selected) onDone;
+  final bool selectAllDicts;
+  final Set<String> selectedDicts;
+  final void Function(
+    ExtractSource source,
+    bool selectAll,
+    Set<String> selected,
+    bool selectAllDicts,
+    Set<String> selectedDicts,
+  )
+  onDone;
 
   const _RangePickerSheet({
     required this.vocab,
+    required this.custom,
+    required this.wrong,
+    required this.source,
     required this.selectAll,
     required this.selected,
+    required this.selectAllDicts,
+    required this.selectedDicts,
     required this.onDone,
   });
 
@@ -407,12 +476,16 @@ class _RangePickerSheet extends StatefulWidget {
 }
 
 class _RangePickerSheetState extends State<_RangePickerSheet> {
+  late ExtractSource _source = widget.source;
   late bool _selectAll = widget.selectAll;
   late final Set<String> _selected = Set.of(widget.selected);
+  late bool _selectAllDicts = widget.selectAllDicts;
+  late final Set<String> _selectedDicts = Set.of(widget.selectedDicts);
   final Set<String> _expandedBooks = {};
 
   VocabularyService get _v => widget.vocab;
 
+  // ── 课本来源 ──
   bool _unitSelected(String book, String unit) =>
       _selectAll || _selected.contains('$book|$unit');
 
@@ -467,18 +540,58 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
     });
   }
 
+  // ── 自定义词典来源 ──
+  void _toggleAllDicts() {
+    setState(() {
+      _selectAllDicts = !_selectAllDicts;
+      if (_selectAllDicts) _selectedDicts.clear();
+    });
+  }
+
+  void _toggleDict(String name) {
+    setState(() {
+      if (_selectAllDicts) {
+        _selectAllDicts = false;
+        _selectedDicts
+          ..clear()
+          ..add(name);
+      } else {
+        _selectedDicts.contains(name)
+            ? _selectedDicts.remove(name)
+            : _selectedDicts.add(name);
+      }
+    });
+  }
+
   void _confirm() {
-    widget.onDone(_selectAll, _selected);
+    widget.onDone(
+      _source,
+      _selectAll,
+      _selected,
+      _selectAllDicts,
+      _selectedDicts,
+    );
     Navigator.of(context).pop();
   }
 
+  bool get _canConfirm => switch (_source) {
+    ExtractSource.textbook => _selectAll || _selected.isNotEmpty,
+    ExtractSource.customDict => _selectAllDicts || _selectedDicts.isNotEmpty,
+    ExtractSource.wrongWord => widget.wrong.count > 0,
+  };
+
+  String get _confirmLabel => switch (_source) {
+    ExtractSource.textbook =>
+      _selectAll ? '使用全部课本' : '使用已选 ${_selected.length} 个单元',
+    ExtractSource.customDict =>
+      _selectAllDicts ? '使用全部自定义词典' : '使用已选 ${_selectedDicts.length} 个词典',
+    ExtractSource.wrongWord => '使用错词本（${widget.wrong.count} 词）',
+  };
+
   @override
   Widget build(BuildContext context) {
-    final books = _v.books;
-    final canConfirm = _selectAll || _selected.isNotEmpty;
-
     return Container(
-      height: 500,
+      height: 520,
       decoration: const BoxDecoration(
         color: CupertinoColors.systemBackground,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -516,76 +629,204 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              '默认从全部课本抽取，也可只选某些课本/单元',
+              '选择从哪里随机抽取单词',
               style: TextStyle(
                 fontSize: 11,
                 color: CupertinoColors.secondaryLabel,
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          // “全部课本”选项
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _toggleAll,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: CupertinoColors.secondarySystemBackground.resolveFrom(
-                  context,
-                ),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _selectAll
-                      ? CupertinoColors.activeBlue.withAlpha(90)
-                      : CupertinoColors.systemGrey5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _selectAll
-                        ? CupertinoIcons.checkmark_circle_fill
-                        : CupertinoIcons.circle,
-                    size: 20,
-                    color: _selectAll
-                        ? CupertinoColors.activeBlue
-                        : CupertinoColors.systemGrey4,
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      '全部课本',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${_v.allWords.length} 词',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: CupertinoColors.secondaryLabel,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           const SizedBox(height: 10),
-          // 课本/单元列表
-          Expanded(
-            child: ListView(
-              children: [for (final book in books) _bookTile(book)],
-            ),
+          // 来源切换
+          CupertinoSegmentedControl<ExtractSource>(
+            groupValue: _source,
+            onValueChanged: (v) => setState(() => _source = v),
+            children: const {
+              ExtractSource.textbook: Text('课本'),
+              ExtractSource.customDict: Text('自定义'),
+              ExtractSource.wrongWord: Text('错词本'),
+            },
           ),
+          const SizedBox(height: 12),
+          Expanded(child: _buildSourceBody()),
           const SizedBox(height: 10),
           CupertinoButton.filled(
-            onPressed: canConfirm ? _confirm : null,
-            child: Text(_selectAll ? '使用全部课本' : '使用已选 ${_selected.length} 个单元'),
+            onPressed: _canConfirm ? _confirm : null,
+            child: Text(_confirmLabel),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSourceBody() {
+    switch (_source) {
+      case ExtractSource.textbook:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _allToggleRow(
+              selected: _selectAll,
+              title: '全部课本',
+              count: '${_v.allWords.length} 词',
+              onTap: _toggleAll,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView(
+                children: [for (final book in _v.books) _bookTile(book)],
+              ),
+            ),
+          ],
+        );
+      case ExtractSource.customDict:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _allToggleRow(
+              selected: _selectAllDicts,
+              title: '全部自定义词典',
+              count: '${widget.custom.dicts.fold(0, (s, d) => s + d.count)} 词',
+              onTap: _toggleAllDicts,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: widget.custom.dicts.isEmpty
+                  ? const Center(
+                      child: Text(
+                        '还没有自定义词典',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CupertinoColors.secondaryLabel,
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        for (final d in widget.custom.dicts) _dictTile(d),
+                      ],
+                    ),
+            ),
+          ],
+        );
+      case ExtractSource.wrongWord:
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                CupertinoIcons.tray,
+                size: 40,
+                color: CupertinoColors.systemGrey3,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                widget.wrong.count > 0
+                    ? '将从错词本中随机抽取\n当前错词本共 ${widget.wrong.count} 词'
+                    : '错词本还是空的',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: CupertinoColors.secondaryLabel,
+                ),
+              ),
+            ],
+          ),
+        );
+    }
+  }
+
+  Widget _allToggleRow({
+    required bool selected,
+    required String title,
+    required String count,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected
+                ? CupertinoColors.activeBlue.withAlpha(90)
+                : CupertinoColors.systemGrey5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? CupertinoIcons.checkmark_circle_fill
+                  : CupertinoIcons.circle,
+              size: 20,
+              color: selected
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.systemGrey4,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              count,
+              style: const TextStyle(
+                fontSize: 12,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dictTile(CustomDict d) {
+    final sel = _selectAllDicts || _selectedDicts.contains(d.name);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _toggleDict(d.name),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+        child: Row(
+          children: [
+            Icon(
+              sel
+                  ? CupertinoIcons.checkmark_circle_fill
+                  : CupertinoIcons.circle,
+              size: 18,
+              color: sel
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.systemGrey4,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                d.name,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: sel ? null : CupertinoColors.systemGrey,
+                ),
+              ),
+            ),
+            Text(
+              '${d.count} 词',
+              style: const TextStyle(
+                fontSize: 12,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -256,7 +256,7 @@ class _CustomDictDetailScreenState extends State<CustomDictDetailScreen> {
               const SizedBox(width: 6),
               const Expanded(
                 child: Text(
-                  '点单词加入购物车，长按删除',
+                  '点单词加入默写单词表，长按删除',
                   style: TextStyle(
                     fontSize: 12,
                     color: CupertinoColors.secondaryLabel,
@@ -348,7 +348,7 @@ class _CustomDictDetailScreenState extends State<CustomDictDetailScreen> {
                           ),
                           child: Row(
                             children: [
-                              // 点菜状态图标：已点 = 对勾，未点 = 加号
+                              // 点菜状态图标：已选 = 对勾，未选 = 加号
                               AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 180),
                                 transitionBuilder: (child, anim) =>
@@ -403,7 +403,7 @@ class _CustomDictDetailScreenState extends State<CustomDictDetailScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Text(
-                                    '已点',
+                                    '已选',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: CupertinoColors.white,
