@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -36,6 +34,15 @@ class TtsService {
   /// 朗读因设备缺少相应语言语音而失败时触发（Android）
   VoidCallback? onUnavailable;
 
+  /// macOS/iOS 直接用系统语音，无需手动切换语言
+  bool get _isAppleDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  /// flutter_tts 不支持 web，网页版仅依赖本地音频
+  bool get _ttsSupported => !kIsWeb;
+
   Future<void> init() async {
     try {
       _tts.setCompletionHandler(() {
@@ -56,10 +63,12 @@ class TtsService {
       await _tts.setPitch(1.0);
       await _tts.setSpeechRate(0.5);
       await _tts.setVolume(1.0);
-      if (!Platform.isMacOS && !Platform.isIOS) {
+      if (!_isAppleDesktop && _ttsSupported) {
         await _initAndroid();
       }
-      debugPrint('[TtsService] ready on ${Platform.operatingSystem}');
+      debugPrint(
+        '[TtsService] ready on ${kIsWeb ? 'web' : defaultTargetPlatform.name}',
+      );
     } catch (e) {
       debugPrint('[TtsService] init error: $e');
     }
@@ -135,14 +144,15 @@ class TtsService {
     if (!_ready) return false;
     // 1) 优先本地音频（不依赖设备 TTS 引擎）
     if (await _playLocalAudioFile('${_sanitize(text)}.m4a')) return true;
-    // 2) 回退 TTS
-    if (!Platform.isMacOS && !Platform.isIOS && !_englishAvailable) {
+    // 2) 回退 TTS（web 不支持 flutter_tts）
+    if (!_ttsSupported) return false;
+    if (!_isAppleDesktop && !_englishAvailable) {
       _state = TtsState.idle;
       onUnavailable?.call();
       return false;
     }
     try {
-      if (!Platform.isMacOS && !Platform.isIOS) {
+      if (!_isAppleDesktop) {
         await _tts.setLanguage('en-US');
       }
       await _tts.setPitch(1.0);
@@ -167,8 +177,9 @@ class TtsService {
         return true;
       }
     }
-    // 2) 回退 TTS
-    if (!Platform.isMacOS && !Platform.isIOS && !_chineseAvailable) {
+    // 2) 回退 TTS（web 不支持 flutter_tts）
+    if (!_ttsSupported) return false;
+    if (!_isAppleDesktop && !_chineseAvailable) {
       _state = TtsState.idle;
       onUnavailable?.call();
       return false;
@@ -177,7 +188,7 @@ class TtsService {
     t = t.replaceAll('|', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
     if (t.isEmpty) t = text;
     try {
-      if (!Platform.isMacOS && !Platform.isIOS) {
+      if (!_isAppleDesktop) {
         await _tts.setLanguage('zh-CN');
       }
       await _tts.setPitch(1.05);

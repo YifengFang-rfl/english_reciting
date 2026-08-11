@@ -1,0 +1,56 @@
+name: Deploy Web to GitHub Pages
+
+# 自动构建网页版并部署到 GitHub Pages（免费托管网站）。
+# 触发方式:
+#   1. 推送 main 分支时自动部署
+#   2. 或手动: Actions → Deploy Web to GitHub Pages → Run workflow
+# 部署前需在仓库 Settings → Pages → Source 选择 "GitHub Actions"（只需设置一次）。
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # base-href 需与仓库名一致: https://<user>.github.io/english_reciting/
+      - name: Build web
+        run: flutter build web --release --base-href=/english_reciting/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
