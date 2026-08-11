@@ -79,23 +79,43 @@
     {{flutter_build_config}}
   </script>
   <script>
-    // 首帧渲染完成后隐藏加载提示
-    window.addEventListener('flutter-first-frame', function () {
+    // ── 加载进度显示 ─────────────────────────────────────────
+    // 注：此 Flutter 引擎版本不上报真实下载字节数，故用平滑模拟进度，
+    // 若引擎偶尔返回有效字节数据则自动切换为真实百分比。
+    const progressEl = document.getElementById('load-progress');
+    const barEl = document.getElementById('load-bar');
+    let pct = 0;
+    let realMode = false;
+
+    function setPct(v) {
+      if (progressEl) progressEl.textContent = v + '%';
+      if (barEl) barEl.style.width = v + '%';
+    }
+
+    // 模拟进度：先快后慢地升到 92%
+    const simTimer = setInterval(function () {
+      if (realMode) return; // 已切换到真实进度
+      pct = Math.min(92, pct + (92 - pct) * 0.05 + 0.4);
+      setPct(Math.round(pct));
+    }, 180);
+
+    function finishLoading() {
+      clearInterval(simTimer);
+      setPct(100);
       const el = document.getElementById('loading');
       if (el) el.style.display = 'none';
-    });
+    }
+    window.addEventListener('flutter-first-frame', finishLoading);
 
+    // ── 自定义 Flutter 启动（保留真实进度回调兜底）──────────
     _flutter.loader.load({
       onEntrypointLoaded: async function (engineInitializer) {
         let appRunner = await engineInitializer.initializeEngine({
           onProgress: function (progress) {
-            // progress: { downloadedBytes, totalBytes }
-            if (!progress || progress.totalBytes <= 0) return;
-            const pct = Math.min(99, Math.round(progress.downloadedBytes / progress.totalBytes * 100));
-            const pctEl = document.getElementById('load-progress');
-            const barEl = document.getElementById('load-bar');
-            if (pctEl) pctEl.textContent = pct + '%';
-            if (barEl) barEl.style.width = pct + '%';
+            if (!progress || progress.totalBytes <= 0 || progress.downloadedBytes == null) return;
+            realMode = true;
+            clearInterval(simTimer);
+            setPct(Math.min(99, Math.round(progress.downloadedBytes / progress.totalBytes * 100)));
           }
         });
         await appRunner.runApp();
