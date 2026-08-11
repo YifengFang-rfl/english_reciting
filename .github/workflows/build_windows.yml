@@ -1,0 +1,47 @@
+name: Build Windows Installer
+
+# 在云端 Windows 服务器上构建 Windows 安装包（免费）。
+# 触发方式:
+#   1. 推送 main 分支时自动构建
+#   2. 或手动: GitHub 仓库 → Actions → Build Windows Installer → Run workflow
+# 产物: 构建完成后在 Actions 页面的 Artifacts 里下载 zip。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    name: Windows 安装包
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Package (zip Release folder)
+        shell: powershell
+        run: |
+          cd build\windows\x64\runner\Release
+          Compress-Archive -Path * -DestinationPath english_reciting_windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: english-reciting-windows
+          path: build/windows/x64/runner/Release/english_reciting_windows.zip
