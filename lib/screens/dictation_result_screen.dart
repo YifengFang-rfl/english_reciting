@@ -6,14 +6,12 @@ import '../services/wrong_word_service.dart';
 class DictationResultScreen extends StatefulWidget {
   final List<WordEntry> words;
   final WrongWordService wrongWordService;
-  final VoidCallback onBackToSelect;
   final VoidCallback onBackHome;
 
   const DictationResultScreen({
     super.key,
     required this.words,
     required this.wrongWordService,
-    required this.onBackToSelect,
     required this.onBackHome,
   });
 
@@ -260,8 +258,8 @@ class _DictationResultScreenState extends State<DictationResultScreen> {
                     context,
                   ),
                   borderRadius: BorderRadius.circular(10),
-                  onPressed: widget.onBackToSelect,
-                  child: const Text('返回选书'),
+                  onPressed: widget.onBackHome,
+                  child: const Text('返回首页'),
                 ),
               ),
               const SizedBox(width: 12),

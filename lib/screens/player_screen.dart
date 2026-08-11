@@ -29,9 +29,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _paused = false;
   bool _isSpeaking = false;
   bool _revealed = false; // 是否亮出单词
-  double _pauseSeconds = 5.0;
+  double _pauseSeconds = 8.0;
   Timer? _pauseTimer;
   int _pauseRemaining = 0;
+  bool _ttsAlertShown = false;
 
   WordEntry get _currentWord => widget.words[_index];
   bool get _isLast => _index >= widget.words.length - 1;
@@ -70,13 +71,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (!_playing || _paused) return;
     setState(() => _isSpeaking = true);
     final w = _currentWord;
-    if (w.direction == DictateDirection.cnToEn) {
-      // 默英文 → 朗读中文提示，学生写英文
-      await widget.tts.speakChinese(w.chinese);
-    } else {
-      // 默中文 → 朗读英文提示，学生写中文
-      await widget.tts.speakEnglish(w.english);
+    final ok = w.direction == DictateDirection.cnToEn
+        ? await widget.tts.speakChinese(w.chinese, english: w.english)
+        : await widget.tts.speakEnglish(w.english);
+    if (!ok && mounted) {
+      setState(() => _isSpeaking = false);
+      _showTtsUnavailable();
     }
+  }
+
+  /// Android 上缺少对应语音包（无法朗读）时，提示用户如何修复
+  void _showTtsUnavailable() {
+    if (!mounted || _ttsAlertShown) return;
+    _ttsAlertShown = true;
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('无法朗读单词'),
+        content: const Text(
+          '当前设备缺少可用的语音引擎或语音包，导致无法朗读。\n\n'
+          '请检查：\n'
+          '① 打开 系统设置 → 辅助功能 → 文本转语音(TTS)\n'
+          '② 确认已启用语音引擎，并已安装英文语音包\n'
+          '③ 若内置引擎没有英文语音，可安装「讯飞语音」或「Google 文字转语音」，设为默认引擎\n'
+          '④ 设置完成后点「重试」',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _ttsAlertShown = false;
+              if (_playing && !_paused) _speak();
+            },
+            child: const Text('重试'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startPause() {

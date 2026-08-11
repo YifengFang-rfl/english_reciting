@@ -43,6 +43,9 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
   bool _selectAllDicts = true; // 自定义词典：默认全部
   final Set<String> _selectedDicts = {}; // 自定义词典：选中的词表名
 
+  bool _selectAllWrong = true; // 错词本：默认全部
+  final Set<String> _selectedWrong = {}; // 错词本：选中的错词本名
+
   VocabularyService get _v => widget.vocab;
 
   @override
@@ -71,7 +74,13 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
             .expand((d) => d.words)
             .toList();
       case ExtractSource.wrongWord:
-        return widget.wrong.words.toList();
+        final names = _selectAllWrong
+            ? widget.wrong.books.map((b) => b.name).toSet()
+            : _selectedWrong;
+        return widget.wrong.books
+            .where((b) => names.contains(b.name))
+            .expand((b) => b.words)
+            .toList();
     }
   }
 
@@ -89,7 +98,9 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
             ? '全部自定义词典 · 共 $_poolCount 词'
             : '已选 ${_selectedDicts.length} 个词典 · 共 $_poolCount 词';
       case ExtractSource.wrongWord:
-        return '错词本 · 共 $_poolCount 词';
+        return _selectAllWrong
+            ? '全部错词本 · 共 $_poolCount 词'
+            : '已选 ${_selectedWrong.length} 个错词本 · 共 $_poolCount 词';
     }
   }
 
@@ -106,7 +117,17 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
         selected: _selected,
         selectAllDicts: _selectAllDicts,
         selectedDicts: _selectedDicts,
-        onDone: (source, selectAll, selected, selectAllDicts, selectedDicts) {
+        selectAllWrong: _selectAllWrong,
+        selectedWrong: _selectedWrong,
+        onDone: (
+          source,
+          selectAll,
+          selected,
+          selectAllDicts,
+          selectedDicts,
+          selectAllWrong,
+          selectedWrong,
+        ) {
           setState(() {
             _source = source;
             _selectAll = selectAll;
@@ -117,6 +138,10 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
             _selectedDicts
               ..clear()
               ..addAll(selectedDicts);
+            _selectAllWrong = selectAllWrong;
+            _selectedWrong
+              ..clear()
+              ..addAll(selectedWrong);
             _drawn = [];
             _picked.clear();
           });
@@ -450,12 +475,16 @@ class _RangePickerSheet extends StatefulWidget {
   final Set<String> selected;
   final bool selectAllDicts;
   final Set<String> selectedDicts;
+  final bool selectAllWrong;
+  final Set<String> selectedWrong;
   final void Function(
     ExtractSource source,
     bool selectAll,
     Set<String> selected,
     bool selectAllDicts,
     Set<String> selectedDicts,
+    bool selectAllWrong,
+    Set<String> selectedWrong,
   )
   onDone;
 
@@ -468,6 +497,8 @@ class _RangePickerSheet extends StatefulWidget {
     required this.selected,
     required this.selectAllDicts,
     required this.selectedDicts,
+    required this.selectAllWrong,
+    required this.selectedWrong,
     required this.onDone,
   });
 
@@ -481,6 +512,8 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
   late final Set<String> _selected = Set.of(widget.selected);
   late bool _selectAllDicts = widget.selectAllDicts;
   late final Set<String> _selectedDicts = Set.of(widget.selectedDicts);
+  late bool _selectAllWrong = widget.selectAllWrong;
+  late final Set<String> _selectedWrong = Set.of(widget.selectedWrong);
   final Set<String> _expandedBooks = {};
 
   VocabularyService get _v => widget.vocab;
@@ -563,6 +596,29 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
     });
   }
 
+  // ── 错词本来源 ──
+  void _toggleAllWrong() {
+    setState(() {
+      _selectAllWrong = !_selectAllWrong;
+      if (_selectAllWrong) _selectedWrong.clear();
+    });
+  }
+
+  void _toggleWrongBook(String name) {
+    setState(() {
+      if (_selectAllWrong) {
+        _selectAllWrong = false;
+        _selectedWrong
+          ..clear()
+          ..add(name);
+      } else {
+        _selectedWrong.contains(name)
+            ? _selectedWrong.remove(name)
+            : _selectedWrong.add(name);
+      }
+    });
+  }
+
   void _confirm() {
     widget.onDone(
       _source,
@@ -570,6 +626,8 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
       _selected,
       _selectAllDicts,
       _selectedDicts,
+      _selectAllWrong,
+      _selectedWrong,
     );
     Navigator.of(context).pop();
   }
@@ -577,7 +635,7 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
   bool get _canConfirm => switch (_source) {
     ExtractSource.textbook => _selectAll || _selected.isNotEmpty,
     ExtractSource.customDict => _selectAllDicts || _selectedDicts.isNotEmpty,
-    ExtractSource.wrongWord => widget.wrong.count > 0,
+    ExtractSource.wrongWord => _selectAllWrong || _selectedWrong.isNotEmpty,
   };
 
   String get _confirmLabel => switch (_source) {
@@ -585,7 +643,9 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
       _selectAll ? '使用全部课本' : '使用已选 ${_selected.length} 个单元',
     ExtractSource.customDict =>
       _selectAllDicts ? '使用全部自定义词典' : '使用已选 ${_selectedDicts.length} 个词典',
-    ExtractSource.wrongWord => '使用错词本（${widget.wrong.count} 词）',
+    ExtractSource.wrongWord => _selectAllWrong
+        ? '使用全部错词本（${widget.wrong.count} 词）'
+        : '使用已选 ${_selectedWrong.length} 个错词本',
   };
 
   @override
@@ -710,28 +770,35 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
           ],
         );
       case ExtractSource.wrongWord:
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                CupertinoIcons.tray,
-                size: 40,
-                color: CupertinoColors.systemGrey3,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                widget.wrong.count > 0
-                    ? '将从错词本中随机抽取\n当前错词本共 ${widget.wrong.count} 词'
-                    : '错词本还是空的',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: CupertinoColors.secondaryLabel,
-                ),
-              ),
-            ],
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _allToggleRow(
+              selected: _selectAllWrong,
+              title: '全部错词本',
+              count: '${widget.wrong.count} 词',
+              onTap: _toggleAllWrong,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: widget.wrong.books.isEmpty
+                  ? const Center(
+                      child: Text(
+                        '还没有错词本',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CupertinoColors.secondaryLabel,
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        for (final b in widget.wrong.books)
+                          _wrongBookTile(b),
+                      ],
+                    ),
+            ),
+          ],
         );
     }
   }
@@ -820,6 +887,47 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
             ),
             Text(
               '${d.count} 词',
+              style: const TextStyle(
+                fontSize: 12,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _wrongBookTile(WrongBook b) {
+    final sel = _selectAllWrong || _selectedWrong.contains(b.name);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _toggleWrongBook(b.name),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+        child: Row(
+          children: [
+            Icon(
+              sel
+                  ? CupertinoIcons.checkmark_circle_fill
+                  : CupertinoIcons.circle,
+              size: 18,
+              color: sel
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.systemGrey4,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                b.name,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: sel ? null : CupertinoColors.systemGrey,
+                ),
+              ),
+            ),
+            Text(
+              '${b.count} 词',
               style: const TextStyle(
                 fontSize: 12,
                 color: CupertinoColors.secondaryLabel,

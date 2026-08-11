@@ -26,7 +26,7 @@ class DictationApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const CupertinoApp(title: '英语默写助手', home: DictationCoordinator());
+      const CupertinoApp(title: '英语听写', home: DictationCoordinator());
 }
 
 enum AppPhase {
@@ -179,7 +179,7 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   String get _title {
     switch (_phase) {
       case AppPhase.home:
-        return '英语默写助手';
+        return '英语听写';
       case AppPhase.bookSelection:
         return '选择课本和单元';
       case AppPhase.unitDetail:
@@ -328,7 +328,6 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
         return DictationResultScreen(
           words: _dictationWords,
           wrongWordService: _wrong,
-          onBackToSelect: _backToBookSelection,
           onBackHome: _goHome,
         );
       case AppPhase.wrongWords:
