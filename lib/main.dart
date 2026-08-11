@@ -25,8 +25,12 @@ class DictationApp extends StatelessWidget {
   const DictationApp({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const CupertinoApp(title: '英语听写', home: DictationCoordinator());
+  Widget build(BuildContext context) => const CupertinoApp(
+    title: '英语听写',
+    // 界面按浅色设计，强制浅色模式，避免系统深色模式下文字/背景对比度不足看不清
+    theme: CupertinoThemeData(brightness: Brightness.light),
+    home: DictationCoordinator(),
+  );
 }
 
 enum AppPhase {
