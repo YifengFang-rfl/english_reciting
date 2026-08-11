@@ -56,29 +56,50 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     #loading p { margin: 0; font-size: 15px; color: #5a7cb8; }
+    #loading .bar-wrap { width: 220px; height: 6px; background: #dbe7fb; border-radius: 3px; margin: 14px 0 8px; overflow: hidden; }
+    #loading .bar { height: 100%; width: 0; background: #1d6bf0; border-radius: 3px; transition: width 0.25s ease; }
+    #loading .progress { margin: 0; font-size: 14px; color: #1d6bf0; font-weight: 600; }
     #loading .hint { margin-top: 10px; font-size: 13px; color: #8ba3c8; line-height: 1.7; text-align: center; }
   </style>
 
   <div id="loading">
     <div class="spinner"></div>
     <p>英语听写 · 正在加载…</p>
+    <div class="bar-wrap"><div id="load-bar" class="bar"></div></div>
+    <p id="load-progress" class="progress">0%</p>
     <p class="hint">首次加载需下载运行引擎，请稍候片刻；<br>之后再次打开即可秒开使用</p>
   </div>
 
   <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
+    自定义 Flutter 启动：显示真实的下载进度百分比。
+    参考: https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    {{flutter_js}}
+    {{flutter_build_config}}
+  </script>
   <script>
     // 首帧渲染完成后隐藏加载提示
     window.addEventListener('flutter-first-frame', function () {
       const el = document.getElementById('loading');
       if (el) el.style.display = 'none';
+    });
+
+    _flutter.loader.load({
+      onEntrypointLoaded: async function (engineInitializer) {
+        let appRunner = await engineInitializer.initializeEngine({
+          onProgress: function (progress) {
+            // progress: { downloadedBytes, totalBytes }
+            if (!progress || progress.totalBytes <= 0) return;
+            const pct = Math.min(99, Math.round(progress.downloadedBytes / progress.totalBytes * 100));
+            const pctEl = document.getElementById('load-progress');
+            const barEl = document.getElementById('load-bar');
+            if (pctEl) pctEl.textContent = pct + '%';
+            if (barEl) barEl.style.width = pct + '%';
+          }
+        });
+        await appRunner.runApp();
+      }
     });
   </script>
 </body>
