@@ -3,7 +3,7 @@
 > **版本**: 1.0.0  
 > **Flutter SDK**: ^3.12.2  
 > **UI 框架**: Cupertino (iOS 风格)  
-> **依赖**: `flutter_tts` (语音合成), `http` (翻译 API)
+> **依赖**: `flutter_tts` (语音合成), `http` (翻译 API), `pdf` + `printing` (默写表 PDF 导出)
 
 ---
 

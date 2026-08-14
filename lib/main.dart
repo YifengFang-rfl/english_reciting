@@ -1,8 +1,10 @@
 import 'package:flutter/cupertino.dart';
+import 'package:printing/printing.dart';
 
 import 'models/word_pair.dart';
 import 'services/cart_service.dart';
 import 'services/custom_dict_service.dart';
+import 'services/dictation_pdf_service.dart';
 import 'services/tts_service.dart';
 import 'services/vocabulary_service.dart';
 import 'services/wrong_word_service.dart';
@@ -59,6 +61,7 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   final _wrong = WrongWordService();
   final _cart = CartService();
   final _custom = CustomDictService();
+  final _pdf = DictationPdfService();
   AppPhase _phase = AppPhase.home;
   List<WordEntry> _dictationWords = [];
   bool _ready = false;
@@ -166,8 +169,61 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
           _startDictation(_cart.words);
         },
         onClearAll: _cart.clear,
+        onExportPdf: (items) =>
+            _exportDictationPdf(items.map((e) => e.word).toList()),
       ),
     );
+  }
+
+  /// 生成并分享默写单词表 PDF（关闭购物车弹层后执行）
+  Future<void> _exportDictationPdf(List<WordEntry> words) async {
+    if (words.isEmpty || !mounted) return;
+
+    showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CupertinoAlertDialog(
+        content: Row(
+          children: [
+            CupertinoActivityIndicator(),
+            SizedBox(width: 16),
+            Text('正在生成 PDF…'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final bytes = await _pdf.buildWorksheet(words: words);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // 关闭生成中提示
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: _pdfFileName(DateTime.now()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // 关闭生成中提示
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (ctx) => CupertinoAlertDialog(
+          title: const Text('导出失败'),
+          content: Text('生成默写单词表 PDF 时出错：$e'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('好的'),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  String _pdfFileName(DateTime now) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '默写单词表_${now.year}${two(now.month)}${two(now.day)}'
+        '_${two(now.hour)}${two(now.minute)}.pdf';
   }
 
   void _onPlayerComplete() {

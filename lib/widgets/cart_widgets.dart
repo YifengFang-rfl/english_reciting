@@ -132,6 +132,7 @@ class CartSheet extends StatefulWidget {
   final void Function(CartItem item) onRemove;
   final VoidCallback onCheckout;
   final VoidCallback? onClearAll;
+  final Future<void> Function(List<CartItem> items)? onExportPdf;
 
   const CartSheet({
     super.key,
@@ -139,6 +140,7 @@ class CartSheet extends StatefulWidget {
     required this.onRemove,
     required this.onCheckout,
     this.onClearAll,
+    this.onExportPdf,
   });
 
   @override
@@ -155,6 +157,13 @@ class _CartSheetState extends State<CartSheet> {
     if (_items.isEmpty) {
       Navigator.of(context).pop();
     }
+  }
+
+  /// 关闭弹层后生成并分享默写单词表 PDF
+  Future<void> _exportPdf() async {
+    final items = List<CartItem>.of(_items);
+    Navigator.of(context).pop();
+    await widget.onExportPdf?.call(items);
   }
 
   /// 一键清空购物车（带确认）
@@ -303,9 +312,44 @@ class _CartSheetState extends State<CartSheet> {
                   ),
           ),
           const SizedBox(height: 10),
-          CupertinoButton.filled(
-            onPressed: count > 0 ? widget.onCheckout : null,
-            child: Text('开始默写（$count 词）'),
+          Row(
+            children: [
+              Expanded(
+                child: CupertinoButton(
+                  color: CupertinoColors.secondarySystemBackground.resolveFrom(
+                    context,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  onPressed: count > 0 ? _exportPdf : null,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.doc_text_search,
+                        size: 18,
+                        color: CupertinoColors.activeBlue,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '导出 PDF',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: CupertinoColors.activeBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: CupertinoButton.filled(
+                  onPressed: count > 0 ? widget.onCheckout : null,
+                  child: Text('开始默写（$count 词）'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
