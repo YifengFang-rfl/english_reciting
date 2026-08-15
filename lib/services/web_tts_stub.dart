@@ -13,6 +13,10 @@ class WebTts {
 
   Future<bool> speakChinese(String text) async => false;
 
+  bool hasEdgeVoice(String lang) => false;
+
+  Future<bool> playLocal(String url) async => false;
+
   Future<void> pause() async {}
 
   Future<void> stop() async {}

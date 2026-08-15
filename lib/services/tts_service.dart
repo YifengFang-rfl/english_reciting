@@ -110,6 +110,21 @@ class TtsService {
   /// 尝试播放指定文件名的本地音频；找不到则返回 false
   Future<bool> _playLocalAudioFile(String fname) async {
     if (!_audioIndex.contains(fname)) return false;
+    if (kIsWeb) {
+      // 网页版：用原生 HTMLAudioElement 播放本地 m4a，
+      // 等待真正开始播放；失败则回退浏览器语音合成
+      try {
+        final url = await AudioCache.instance.loadPath('audio/$fname');
+        _state = TtsState.playing;
+        final ok = await _webTts.playLocal(url);
+        if (!ok) _state = TtsState.idle;
+        return ok;
+      } catch (e) {
+        debugPrint('[TtsService] 网页本地音频失败: $e');
+        _state = TtsState.idle;
+        return false;
+      }
+    }
     try {
       await _tts.stop();
       await _audio.stop();
@@ -153,16 +168,25 @@ class TtsService {
   /// Android 上两者都不可用时返回 false 并触发 [onUnavailable]。
   Future<bool> speakEnglish(String text) async {
     if (!_ready) return false;
-    // 1) 优先本地音频（不依赖设备 TTS 引擎）
-    if (await _playLocalAudioFile('${_sanitize(text)}.m4a')) return true;
-    // 2) web 回退浏览器内置 TTS（免费，无需 Key）
+    // 网页端优先级：Edge 神经语音 → 内嵌音频 → 系统语音
     if (kIsWeb) {
+      if (_webTts.hasEdgeVoice('en-US')) {
+        _state = TtsState.playing;
+        final ok = await _webTts.speakEnglish(text);
+        if (!ok) _state = TtsState.idle;
+        return ok;
+      }
+      // 内嵌音频（不依赖设备 TTS 引擎）
+      if (await _playLocalAudioFile('${_sanitize(text)}.m4a')) return true;
+      // 系统语音回退
       _state = TtsState.playing;
       final ok = await _webTts.speakEnglish(text);
       if (!ok) _state = TtsState.idle;
       return ok;
     }
-    // 3) 回退 TTS（web 不支持 flutter_tts）
+    // 1) 优先本地音频（不依赖设备 TTS 引擎）
+    if (await _playLocalAudioFile('${_sanitize(text)}.m4a')) return true;
+    // 2) 回退 TTS（web 不支持 flutter_tts）
     if (!_ttsSupported) return false;
     if (!_isAppleDesktop && !_englishAvailable) {
       _state = TtsState.idle;
@@ -189,29 +213,41 @@ class TtsService {
   /// [english] 用于定位对应单词的中文音频（<英文名>_cn.m4a）。
   Future<bool> speakChinese(String text, {String? english}) async {
     if (!_ready) return false;
+    // 归一化中文文本：去掉词性前缀、竖线，确保朗读干净的普通话
+    final t = _normalizeChinese(text);
+    // 网页端优先级：Edge 神经语音(普通话) → 内嵌中文音频 → 系统语音
+    if (kIsWeb) {
+      if (_webTts.hasEdgeVoice('zh-CN')) {
+        _state = TtsState.playing;
+        final ok = await _webTts.speakChinese(t);
+        if (!ok) _state = TtsState.idle;
+        return ok;
+      }
+      // 内嵌中文音频
+      if (english != null && english.isNotEmpty) {
+        if (await _playLocalAudioFile('${_sanitize(english)}_cn.m4a')) {
+          return true;
+        }
+      }
+      // 系统语音回退
+      _state = TtsState.playing;
+      final ok = await _webTts.speakChinese(t);
+      if (!ok) _state = TtsState.idle;
+      return ok;
+    }
     // 1) 优先本地中文音频（不依赖设备 TTS 引擎）
     if (english != null && english.isNotEmpty) {
       if (await _playLocalAudioFile('${_sanitize(english)}_cn.m4a')) {
         return true;
       }
     }
-    // 2) web 回退浏览器内置 TTS（免费，无需 Key）
-    if (kIsWeb) {
-      _state = TtsState.playing;
-      final ok = await _webTts.speakChinese(text);
-      if (!ok) _state = TtsState.idle;
-      return ok;
-    }
-    // 3) 回退 TTS（web 不支持 flutter_tts）
+    // 2) 回退 TTS（web 不支持 flutter_tts）
     if (!_ttsSupported) return false;
     if (!_isAppleDesktop && !_chineseAvailable) {
       _state = TtsState.idle;
       onUnavailable?.call();
       return false;
     }
-    var t = text.replaceAll(RegExp(r'[a-zA-Z]+\\.\s*'), '');
-    t = t.replaceAll('|', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (t.isEmpty) t = text;
     try {
       if (!_isAppleDesktop) {
         await _tts.setLanguage('zh-CN');
@@ -226,6 +262,13 @@ class TtsService {
       _state = TtsState.idle;
       return false;
     }
+  }
+
+  /// 中文朗读文本归一化：去掉词性前缀（如 "n."）、竖线分隔、多余空白
+  String _normalizeChinese(String text) {
+    var t = text.replaceAll(RegExp(r'[a-zA-Z]+\.\s*'), '');
+    t = t.replaceAll('|', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return t.isEmpty ? text : t;
   }
 
   Future<void> pause() async {
