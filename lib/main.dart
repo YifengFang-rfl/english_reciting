@@ -328,6 +328,7 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
                   count: _cart.count,
                   onOpenCart: _openCart,
                   onCheckout: () => _startDictation(_cart.words),
+                  onExportPdf: () => _exportDictationPdf(_cart.words),
                 );
               },
             ),

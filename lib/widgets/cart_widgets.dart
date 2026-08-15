@@ -7,6 +7,7 @@ class CartBar extends StatelessWidget {
   final int count;
   final VoidCallback onOpenCart;
   final VoidCallback onCheckout;
+  final VoidCallback onExportPdf;
   final String hint;
 
   const CartBar({
@@ -14,6 +15,7 @@ class CartBar extends StatelessWidget {
     required this.count,
     required this.onOpenCart,
     required this.onCheckout,
+    required this.onExportPdf,
     this.hint = '点击默写单词表查看 / 移除',
   });
 
@@ -80,6 +82,30 @@ class CartBar extends StatelessWidget {
                 ],
               ),
             ),
+            CupertinoButton(
+              onPressed: count > 0 ? onExportPdf : null,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    CupertinoIcons.doc_text_search,
+                    size: 17,
+                    color: CupertinoColors.activeBlue,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '导出 PDF',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: CupertinoColors.activeBlue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
             CupertinoButton.filled(
               onPressed: count > 0 ? onCheckout : null,
               child: const Text('开始默写'),

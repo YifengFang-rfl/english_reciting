@@ -3,12 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_tts/flutter_tts.dart';
 
+import 'web_tts_stub.dart' if (dart.library.js_interop) 'web_tts.dart';
+
 enum TtsState { idle, playing, paused }
 
 /// 跨平台 TTS 服务 —— macOS/iOS 直接用系统语音，Android/Windows 切换语言
 class TtsService {
   final FlutterTts _tts = FlutterTts();
   final AudioPlayer _audio = AudioPlayer();
+  final WebTts _webTts = WebTts();
 
   /// 本地音频索引：assets/audio/index.txt 中的文件名（含扩展名）集合
   final Set<String> _audioIndex = {};
@@ -59,6 +62,14 @@ class TtsService {
         _state = TtsState.idle;
         onComplete?.call();
       });
+      // 浏览器 TTS 完成回调
+      _webTts.onComplete = () {
+        _state = TtsState.idle;
+        onComplete?.call();
+      };
+      if (kIsWeb) {
+        await _webTts.init();
+      }
       await _loadAudioIndex();
       await _tts.setPitch(1.0);
       await _tts.setSpeechRate(0.5);
@@ -144,7 +155,14 @@ class TtsService {
     if (!_ready) return false;
     // 1) 优先本地音频（不依赖设备 TTS 引擎）
     if (await _playLocalAudioFile('${_sanitize(text)}.m4a')) return true;
-    // 2) 回退 TTS（web 不支持 flutter_tts）
+    // 2) web 回退浏览器内置 TTS（免费，无需 Key）
+    if (kIsWeb) {
+      _state = TtsState.playing;
+      final ok = await _webTts.speakEnglish(text);
+      if (!ok) _state = TtsState.idle;
+      return ok;
+    }
+    // 3) 回退 TTS（web 不支持 flutter_tts）
     if (!_ttsSupported) return false;
     if (!_isAppleDesktop && !_englishAvailable) {
       _state = TtsState.idle;
@@ -177,7 +195,14 @@ class TtsService {
         return true;
       }
     }
-    // 2) 回退 TTS（web 不支持 flutter_tts）
+    // 2) web 回退浏览器内置 TTS（免费，无需 Key）
+    if (kIsWeb) {
+      _state = TtsState.playing;
+      final ok = await _webTts.speakChinese(text);
+      if (!ok) _state = TtsState.idle;
+      return ok;
+    }
+    // 3) 回退 TTS（web 不支持 flutter_tts）
     if (!_ttsSupported) return false;
     if (!_isAppleDesktop && !_chineseAvailable) {
       _state = TtsState.idle;
@@ -206,7 +231,11 @@ class TtsService {
   Future<void> pause() async {
     if (_state != TtsState.playing) return;
     try {
-      await _tts.pause();
+      if (kIsWeb) {
+        await _webTts.pause();
+      } else {
+        await _tts.pause();
+      }
       await _audio.pause();
       _state = TtsState.paused;
     } catch (_) {}
@@ -215,7 +244,11 @@ class TtsService {
   Future<void> stop() async {
     try {
       _state = TtsState.idle;
-      await _tts.stop();
+      if (kIsWeb) {
+        await _webTts.stop();
+      } else {
+        await _tts.stop();
+      }
       await _audio.stop();
     } catch (_) {}
   }
@@ -223,6 +256,7 @@ class TtsService {
   void dispose() {
     _tts.stop();
     _audio.stop();
+    _webTts.dispose();
     _ready = false;
   }
 }
