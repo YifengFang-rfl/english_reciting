@@ -127,11 +127,7 @@ Future<String?> askDictName(
     context: context,
     builder: (ctx) => CupertinoAlertDialog(
       title: const Text('保存到词表'),
-      content: CupertinoTextField(
-        controller: controller,
-        placeholder: '词表名称',
-        autofocus: true,
-      ),
+      content: CupertinoTextField(controller: controller, placeholder: '词表名称'),
       actions: [
         CupertinoDialogAction(
           child: const Text('取消'),

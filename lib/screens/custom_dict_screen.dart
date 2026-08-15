@@ -33,7 +33,6 @@ class _CustomDictScreenState extends State<CustomDictScreen> {
             CupertinoTextField(
               controller: nameCtrl,
               placeholder: '词表名称，如：我的生词本',
-              autofocus: true,
             ),
             const SizedBox(height: 10),
             const Align(

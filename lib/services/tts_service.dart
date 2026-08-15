@@ -46,6 +46,12 @@ class TtsService {
   /// flutter_tts 不支持 web，网页版仅依赖本地音频
   bool get _ttsSupported => !kIsWeb;
 
+  /// 移动端浏览器（手机/平板）：Edge 在线神经语音仅桌面浏览器可用，需跳过
+  bool get _isMobileWeb =>
+      kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android);
+
   Future<void> init() async {
     try {
       _tts.setCompletionHandler(() {
@@ -170,7 +176,7 @@ class TtsService {
     if (!_ready) return false;
     // 网页端优先级：Edge 神经语音 → 内嵌音频 → 系统语音
     if (kIsWeb) {
-      if (_webTts.hasEdgeVoice('en-US')) {
+      if (!_isMobileWeb && _webTts.hasEdgeVoice('en-US')) {
         _state = TtsState.playing;
         final ok = await _webTts.speakEnglish(text);
         if (!ok) _state = TtsState.idle;
@@ -217,7 +223,7 @@ class TtsService {
     final t = _normalizeChinese(text);
     // 网页端优先级：Edge 神经语音(普通话) → 内嵌中文音频 → 系统语音
     if (kIsWeb) {
-      if (_webTts.hasEdgeVoice('zh-CN')) {
+      if (!_isMobileWeb && _webTts.hasEdgeVoice('zh-CN')) {
         _state = TtsState.playing;
         final ok = await _webTts.speakChinese(t);
         if (!ok) _state = TtsState.idle;

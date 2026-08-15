@@ -52,7 +52,6 @@ class _CustomDictDetailScreenState extends State<CustomDictDetailScreen> {
                 controller: wordsCtrl,
                 maxLines: 8,
                 textAlignVertical: TextAlignVertical.top,
-                autofocus: true,
                 placeholder: 'apple,苹果\nbook,书\ntake off',
               ),
             ),

@@ -68,7 +68,11 @@ class WebTts {
       final voices = _synth.getVoices().toDart;
       final langLower = lang.toLowerCase();
       for (final v in voices) {
-        if (v.lang.toLowerCase().startsWith(langLower) && _isNatural(v)) {
+        final name = v.name.toLowerCase();
+        // Edge 在线神经语音均为 Microsoft 出品，且带 Natural/Online 标记
+        if (v.lang.toLowerCase().startsWith(langLower) &&
+            name.contains('microsoft') &&
+            (name.contains('natural') || name.contains('online'))) {
           return true;
         }
       }
