@@ -6,6 +6,18 @@
 
 ---
 
+## 软件下载
+
+已发布 v1.0.0，点击下方链接直接下载：
+
+| 平台 | 下载 | 大小 | 说明 |
+|------|------|------|------|
+| 🖥 网页版 | [dictationEn.github.io](https://dictationEn.github.io) | — | 浏览器直接打开即用，无需安装 |
+| 🤖 Android | [english_reciting-1.0.0.apk](https://github.com/YifengFang-rfl/english_reciting/releases/download/v1.0.0/english_reciting-1.0.0.apk) | 约 128 MB | 手机安装时需允许「未知来源应用」 |
+| 🍎 macOS | [english_reciting-1.0.0.dmg](https://github.com/YifengFang-rfl/english_reciting/releases/download/v1.0.0/english_reciting-1.0.0.dmg) | 约 98 MB | 首次打开如提示无法验证，请在「系统设置 → 隐私与安全性」中点击「仍要打开」 |
+
+> 完整源码、历史版本与更新记录见 [GitHub 仓库](https://github.com/YifengFang-rfl/english_reciting)。
+
 ## 功能特色
 
 -   📚 **按课本/单元选词** — 内置人教版高中英语必修 + 选必修共 2569 词
@@ -22,7 +34,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/protonode-ai/english_reciting.git
+git clone https://github.com/YifengFang-rfl/english_reciting.git
 
 # 进入目录
 cd english_reciting
@@ -73,7 +85,7 @@ lib/
 
 ## 许可
 
-MIT
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 - [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
 - [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
