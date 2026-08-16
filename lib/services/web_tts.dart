@@ -61,18 +61,14 @@ class WebTts {
     }
   }
 
-  /// 是否存在该语言的 Edge 神经语音（语音名含 Natural/Online，即 Edge 在线语音）。
-  /// 用于网页端优先级判断：Edge 神经语音 → 内嵌音频 → 系统语音。
-  bool hasEdgeVoice(String lang) {
+  /// 是否存在该语言的自然/在线语音（Edge 微软神经语音、Chrome Google 语音）。
+  /// 用于网页端优先级判断：自然语音 → 内嵌音频 → 系统语音。
+  bool hasNaturalVoice(String lang) {
     try {
       final voices = _synth.getVoices().toDart;
       final langLower = lang.toLowerCase();
       for (final v in voices) {
-        final name = v.name.toLowerCase();
-        // Edge 在线神经语音均为 Microsoft 出品，且带 Natural/Online 标记
-        if (v.lang.toLowerCase().startsWith(langLower) &&
-            name.contains('microsoft') &&
-            (name.contains('natural') || name.contains('online'))) {
+        if (v.lang.toLowerCase().startsWith(langLower) && _isNatural(v)) {
           return true;
         }
       }
@@ -80,12 +76,17 @@ class WebTts {
     return false;
   }
 
+  /// 是否为自然/在线语音：
+  /// - Edge：微软在线神经语音（名字含 Natural / Online）
+  /// - Chrome：Google 在线语音（名字含 Google）
   bool _isNatural(web.SpeechSynthesisVoice v) {
     final name = v.name.toLowerCase();
-    return name.contains('natural') || name.contains('online');
+    return name.contains('natural') ||
+        name.contains('online') ||
+        name.contains('google');
   }
 
-  /// 选语音：优先带 "Natural/Online" 的自然语音（Edge 在线神经语音音质更好），
+  /// 选语音：优先自然/在线语音（Edge 微软神经语音、Chrome Google 语音，音质更好），
   /// 且优先完整语言（如 zh-cn 普通话），其次语言族；都没有则返回 null。
   web.SpeechSynthesisVoice? _pickVoice(String lang) {
     try {

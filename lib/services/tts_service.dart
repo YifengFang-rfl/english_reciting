@@ -174,9 +174,9 @@ class TtsService {
   /// Android 上两者都不可用时返回 false 并触发 [onUnavailable]。
   Future<bool> speakEnglish(String text) async {
     if (!_ready) return false;
-    // 网页端优先级：Edge 神经语音 → 内嵌音频 → 系统语音
+    // 网页端优先级：自然语音(Edge/Chrome 在线) → 内嵌音频 → 系统语音
     if (kIsWeb) {
-      if (!_isMobileWeb && _webTts.hasEdgeVoice('en-US')) {
+      if (!_isMobileWeb && _webTts.hasNaturalVoice('en-US')) {
         _state = TtsState.playing;
         final ok = await _webTts.speakEnglish(text);
         if (!ok) _state = TtsState.idle;
@@ -221,9 +221,9 @@ class TtsService {
     if (!_ready) return false;
     // 归一化中文文本：去掉词性前缀、竖线，确保朗读干净的普通话
     final t = _normalizeChinese(text);
-    // 网页端优先级：Edge 神经语音(普通话) → 内嵌中文音频 → 系统语音
+    // 网页端优先级：自然语音(普通话) → 内嵌中文音频 → 系统语音
     if (kIsWeb) {
-      if (!_isMobileWeb && _webTts.hasEdgeVoice('zh-CN')) {
+      if (!_isMobileWeb && _webTts.hasNaturalVoice('zh-CN')) {
         _state = TtsState.playing;
         final ok = await _webTts.speakChinese(t);
         if (!ok) _state = TtsState.idle;
