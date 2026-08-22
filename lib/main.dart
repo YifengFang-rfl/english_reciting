@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'models/word_pair.dart';
 import 'services/cart_service.dart';
@@ -93,6 +94,32 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
   void _goBuiltIn() => setState(() => _phase = AppPhase.bookSelection);
   void _goCustom() => setState(() => _phase = AppPhase.customDict);
   void _goWrongWords() => setState(() => _phase = AppPhase.wrongWords);
+
+  static const _githubUrl =
+      'https://github.com/YifengFang-rfl/english_reciting';
+
+  /// 打开 GitHub 仓库（感谢支持 + 求 Star）
+  Future<void> _openGithub() async {
+    final uri = Uri.parse(_githubUrl);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (!mounted) return;
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (ctx) => CupertinoAlertDialog(
+          title: const Text('打开失败'),
+          content: Text('无法打开 GitHub 链接：\n$_githubUrl'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('好的'),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   /// 进入某个错词本详情
   void _openWrongBook(String name) {
@@ -348,6 +375,7 @@ class _DictationCoordinatorState extends State<DictationCoordinator> {
           onCustom: _goCustom,
           onWrongWords: _goWrongWords,
           wrongWordCount: _wrong.count,
+          onOpenGithub: _openGithub,
         );
       case AppPhase.bookSelection:
         return BookSelectionScreen(

@@ -13,6 +13,7 @@ void main() {
           onBuiltIn: _noop,
           onCustom: _noop,
           onWrongWords: _noop,
+          onOpenGithub: _noop,
         ),
       ),
     );
@@ -24,5 +25,8 @@ void main() {
     expect(find.text('人教版教材'), findsOneWidget);
     expect(find.text('错词本'), findsOneWidget);
     expect(find.text('自定义词典'), findsOneWidget);
+
+    // 显示 GitHub 求 Star 链接
+    expect(find.text('如果对您有帮助，希望给我一个 Star'), findsOneWidget);
   });
 }

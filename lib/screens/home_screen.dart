@@ -5,6 +5,7 @@ class HomeScreen extends StatelessWidget {
   final VoidCallback onBuiltIn;
   final VoidCallback onCustom;
   final VoidCallback onWrongWords;
+  final VoidCallback onOpenGithub;
   final int wrongWordCount;
 
   const HomeScreen({
@@ -12,6 +13,7 @@ class HomeScreen extends StatelessWidget {
     required this.onBuiltIn,
     required this.onCustom,
     required this.onWrongWords,
+    required this.onOpenGithub,
     this.wrongWordCount = 0,
   });
 
@@ -67,6 +69,8 @@ class HomeScreen extends StatelessWidget {
             subtitle: '手动编入或导入英语单词表',
             onTap: onCustom,
           ),
+          const SizedBox(height: 28),
+          _GithubFooter(onTap: onOpenGithub),
         ],
       ),
     );
@@ -125,6 +129,49 @@ class _OptionCard extends StatelessWidget {
             const Icon(
               CupertinoIcons.chevron_right,
               color: CupertinoColors.systemGrey3,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GithubFooter extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _GithubFooter({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: GestureDetector(
+        onTap: onTap,
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.star_fill,
+                  size: 15,
+                  color: CupertinoColors.systemOrange,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  '如果对您有帮助，希望给我一个 Star',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: CupertinoColors.secondaryLabel,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 4),
+            Text(
+              'github.com/YifengFang-rfl/english_reciting',
+              style: TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
             ),
           ],
         ),
