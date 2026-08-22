@@ -119,33 +119,34 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
         selectedDicts: _selectedDicts,
         selectAllWrong: _selectAllWrong,
         selectedWrong: _selectedWrong,
-        onDone: (
-          source,
-          selectAll,
-          selected,
-          selectAllDicts,
-          selectedDicts,
-          selectAllWrong,
-          selectedWrong,
-        ) {
-          setState(() {
-            _source = source;
-            _selectAll = selectAll;
-            _selected
-              ..clear()
-              ..addAll(selected);
-            _selectAllDicts = selectAllDicts;
-            _selectedDicts
-              ..clear()
-              ..addAll(selectedDicts);
-            _selectAllWrong = selectAllWrong;
-            _selectedWrong
-              ..clear()
-              ..addAll(selectedWrong);
-            _drawn = [];
-            _picked.clear();
-          });
-        },
+        onDone:
+            (
+              source,
+              selectAll,
+              selected,
+              selectAllDicts,
+              selectedDicts,
+              selectAllWrong,
+              selectedWrong,
+            ) {
+              setState(() {
+                _source = source;
+                _selectAll = selectAll;
+                _selected
+                  ..clear()
+                  ..addAll(selected);
+                _selectAllDicts = selectAllDicts;
+                _selectedDicts
+                  ..clear()
+                  ..addAll(selectedDicts);
+                _selectAllWrong = selectAllWrong;
+                _selectedWrong
+                  ..clear()
+                  ..addAll(selectedWrong);
+                _drawn = [];
+                _picked.clear();
+              });
+            },
       ),
     );
   }
@@ -170,6 +171,9 @@ class _RandomExtractScreenState extends State<RandomExtractScreen> {
   void _addPickedToCart() {
     final selected = _drawn.where((w) => _picked.contains(w.english)).toList();
     if (selected.isEmpty) return;
+    // 先移除同名旧条目，再按本次随机抽取后的顺序重新加入，
+    // 保证「开始默写」时按打乱后的顺序报词（否则已全选在购物车里的词会被去重跳过）。
+    widget.cart.removeAll(selected);
     widget.cart.addAll(selected, CartSource.random);
     setState(() => _picked.clear());
     showCupertinoDialog<void>(
@@ -643,9 +647,10 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
       _selectAll ? '使用全部课本' : '使用已选 ${_selected.length} 个单元',
     ExtractSource.customDict =>
       _selectAllDicts ? '使用全部自定义词典' : '使用已选 ${_selectedDicts.length} 个词典',
-    ExtractSource.wrongWord => _selectAllWrong
-        ? '使用全部错词本（${widget.wrong.count} 词）'
-        : '使用已选 ${_selectedWrong.length} 个错词本',
+    ExtractSource.wrongWord =>
+      _selectAllWrong
+          ? '使用全部错词本（${widget.wrong.count} 词）'
+          : '使用已选 ${_selectedWrong.length} 个错词本',
   };
 
   @override
@@ -793,8 +798,7 @@ class _RangePickerSheetState extends State<_RangePickerSheet> {
                     )
                   : ListView(
                       children: [
-                        for (final b in widget.wrong.books)
-                          _wrongBookTile(b),
+                        for (final b in widget.wrong.books) _wrongBookTile(b),
                       ],
                     ),
             ),
