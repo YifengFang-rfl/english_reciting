@@ -221,7 +221,7 @@ class _CustomDictDetailScreenState extends State<CustomDictDetailScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      allCnToEn ? '全部默中文' : '全部默英文',
+                      allCnToEn ? '全部报英文' : '全部报中文',
                       style: const TextStyle(
                         fontSize: 14,
                         color: CupertinoColors.activeBlue,
@@ -427,7 +427,7 @@ class _CustomDictDetailScreenState extends State<CustomDictDetailScreen> {
                                   _refresh();
                                 },
                                 child: Text(
-                                  isCnToEn ? '默英文' : '默中文',
+                                  isCnToEn ? '报中文' : '报英文',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,

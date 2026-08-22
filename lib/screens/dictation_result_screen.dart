@@ -230,8 +230,8 @@ class _DictationResultScreenState extends State<DictationResultScreen> {
                         ),
                         Text(
                           w.direction == DictateDirection.cnToEn
-                              ? '默英文'
-                              : '默中文',
+                              ? '报中文'
+                              : '报英文',
                           style: TextStyle(
                             fontSize: 12,
                             color: w.direction == DictateDirection.cnToEn

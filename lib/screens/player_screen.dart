@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/word_pair.dart';
 import '../services/tts_service.dart';
 
@@ -58,13 +59,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     };
     WidgetsBinding.instance.addPostFrameCallback((_) => _speak());
+    _acquireWakelock();
   }
 
   @override
   void dispose() {
     _pauseTimer?.cancel();
     widget.tts.stop();
+    _releaseWakelock();
     super.dispose();
+  }
+
+  /// 默写期间保持屏幕常亮，避免熄屏后 TTS 停止播报
+  Future<void> _acquireWakelock() async {
+    try {
+      await WakelockPlus.enable();
+    } catch (e) {
+      debugPrint('[wakelock] enable failed: $e');
+    }
+  }
+
+  void _releaseWakelock() {
+    WakelockPlus.disable().catchError((_) {});
   }
 
   Future<void> _speak() async {
@@ -253,7 +269,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        isCnToEn ? '默英文' : '默中文',
+                        isCnToEn ? '报中文' : '报英文',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,

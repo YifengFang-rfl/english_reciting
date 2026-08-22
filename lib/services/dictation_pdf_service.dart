@@ -7,7 +7,7 @@ import '../models/word_pair.dart';
 /// 默写单词表 PDF 生成服务
 ///
 /// 把购物车里选好的单词生成一份学生默写用纸：
-/// 每个词显示默写提示（默英文 = 中文释义，默中文 = 英文单词），
+/// 每个词显示默写提示（报中文 = 中文释义，报英文 = 英文单词），
 /// 提示后面紧跟一条短横线供书写答案，每行排两个单词，省纸。
 class DictationPdfService {
   /// 横线字符：全角下划线，字形连续无间隙
@@ -37,9 +37,11 @@ class DictationPdfService {
     final theme = pw.ThemeData.withFont(base: font, bold: font);
     final now = DateTime.now();
 
-    final allCnToEn = words.isNotEmpty &&
+    final allCnToEn =
+        words.isNotEmpty &&
         words.every((w) => w.direction == DictateDirection.cnToEn);
-    final allEnToCn = words.isNotEmpty &&
+    final allEnToCn =
+        words.isNotEmpty &&
         words.every((w) => w.direction == DictateDirection.enToCn);
     final mixedDirections = words.isNotEmpty && !allCnToEn && !allEnToCn;
     final directionHint = allCnToEn
@@ -85,18 +87,14 @@ class DictationPdfService {
           alignment: pw.Alignment.centerRight,
           child: pw.Text(
             '第 ${ctx.pageNumber} 页',
-            style: pw.TextStyle(
-              fontSize: 8,
-              color: PdfColors.grey600,
-            ),
+            style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
           ),
         ),
         build: (ctx) => [
           ..._buildHeader(
             title: title,
             subtitle:
-                subtitle ??
-                '共 ${words.length} 词 · 生成于 ${_formatDateTime(now)}',
+                subtitle ?? '共 ${words.length} 词 · 生成于 ${_formatDateTime(now)}',
             directionHint: directionHint,
           ),
           for (var i = 0; i < words.length; i += 2)
@@ -164,19 +162,14 @@ class DictationPdfService {
                 children: [
                   pw.Text(
                     label,
-                    style: pw.TextStyle(
-                      fontSize: 10,
-                      color: PdfColors.grey700,
-                    ),
+                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
                   ),
                   pw.Container(
                     margin: const pw.EdgeInsets.only(top: 2),
                     width: 92,
                     height: 14,
                     decoration: const pw.BoxDecoration(
-                      border: pw.Border(
-                        bottom: pw.BorderSide(width: 0.8),
-                      ),
+                      border: pw.Border(bottom: pw.BorderSide(width: 0.8)),
                     ),
                   ),
                 ],
@@ -211,10 +204,7 @@ class DictationPdfService {
             if (suffix != null)
               pw.TextSpan(
                 text: '  $suffix',
-                style: pw.TextStyle(
-                  fontSize: 9,
-                  color: PdfColors.grey600,
-                ),
+                style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
               ),
             // 横线紧跟内容，同一行，长度固定
             pw.TextSpan(text: '  ${_lineChar * _lineLen}'),

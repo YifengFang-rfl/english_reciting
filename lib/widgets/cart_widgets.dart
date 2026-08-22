@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import '../models/cart.dart';
+import '../models/word_pair.dart';
 
 /// 全局购物车栏：左下角购物车 + 右侧“开始默写”（结账）
 /// 购物车是全局的，可以跨课本/单元累积已选单词。
@@ -219,6 +220,32 @@ class _CartSheetState extends State<CartSheet> {
     }
   }
 
+  /// 当前单词表是否全部为「报中文」（cnToEn）方向
+  bool get _allCnToEn =>
+      _items.isNotEmpty &&
+      _items.every((i) => i.word.direction == DictateDirection.cnToEn);
+
+  /// 切换单个单词的报读方向
+  void _toggleDirection(CartItem item) {
+    setState(() {
+      item.word.direction = item.word.direction == DictateDirection.cnToEn
+          ? DictateDirection.enToCn
+          : DictateDirection.cnToEn;
+    });
+  }
+
+  /// 一键切换全部单词的报读方向
+  void _toggleAllDirection() {
+    final allCnToEn = _allCnToEn;
+    setState(() {
+      for (final item in _items) {
+        item.word.direction = allCnToEn
+            ? DictateDirection.enToCn
+            : DictateDirection.cnToEn;
+      }
+    });
+  }
+
   IconData _sourceIcon(CartSource source) => switch (source) {
     CartSource.textbook => CupertinoIcons.book,
     CartSource.wrongWord => CupertinoIcons.tray_fill,
@@ -303,16 +330,60 @@ class _CartSheetState extends State<CartSheet> {
             ],
           ),
           const SizedBox(height: 4),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '点击来源分组展开单词',
-              style: TextStyle(
-                fontSize: 11,
-                color: CupertinoColors.secondaryLabel,
+          if (count > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  const Text(
+                    '点击来源分组展开单词，点单词可切换报读方向',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: CupertinoColors.secondaryLabel,
+                    ),
+                  ),
+                  const Spacer(),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    minimumSize: Size.zero,
+                    onPressed: _toggleAllDirection,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.arrow_2_squarepath,
+                          size: 13,
+                          color: CupertinoColors.activeBlue,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _allCnToEn ? '全部报英文' : '全部报中文',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: CupertinoColors.activeBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '点击来源分组展开单词',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: CupertinoColors.secondaryLabel,
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 8),
           Expanded(
             child: _items.isEmpty
@@ -477,6 +548,32 @@ class _CartSheetState extends State<CartSheet> {
                         ],
                       ),
                     ),
+                    // 方向切换：报中文 / 报英文
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
+                      minimumSize: Size.zero,
+                      color: item.word.direction == DictateDirection.cnToEn
+                          ? CupertinoColors.activeOrange.withAlpha(40)
+                          : CupertinoColors.activeBlue.withAlpha(40),
+                      borderRadius: BorderRadius.circular(6),
+                      onPressed: () => _toggleDirection(item),
+                      child: Text(
+                        item.word.direction == DictateDirection.cnToEn
+                            ? '报中文'
+                            : '报英文',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: item.word.direction == DictateDirection.cnToEn
+                              ? CupertinoColors.activeOrange
+                              : CupertinoColors.activeBlue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     // 减号：从购物车移除该单词
                     CupertinoButton(
                       padding: EdgeInsets.zero,

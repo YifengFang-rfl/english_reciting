@@ -12,7 +12,7 @@
 
 | 平台 | 下载 | 大小 | 说明 |
 |------|------|------|------|
-| 🖥 网页版 | [dictationEn.github.io](https://dictationEn.github.io) | — | 浏览器直接打开即用，无需安装 |
+| 🖥 网页版 | [dictationEn.github.io](https://dictationEn.github.io) | — | 浏览器直接打开即用，无需安装，请使用edge浏览器或chrome浏览器 |
 | 🤖 Android | [english_reciting-1.0.0.apk](https://github.com/YifengFang-rfl/english_reciting/releases/download/v1.0.0/english_reciting-1.0.0.apk) | 约 128 MB | 手机安装时需允许「未知来源应用」 |
 | 🍎 macOS | [english_reciting-1.0.0.dmg](https://github.com/YifengFang-rfl/english_reciting/releases/download/v1.0.0/english_reciting-1.0.0.dmg) | 约 98 MB | 首次打开如提示无法验证，请在「系统设置 → 隐私与安全性」中点击「仍要打开」 |
 
@@ -21,7 +21,7 @@
 ## 功能特色
 
 -   📚 **按课本/单元选词** — 内置人教版高中英语必修 + 选必修共 2569 词
--   🔀 **双方向默写** — 每词可设置「默英文」（听中文→写英文）或「默中文」（听英文→写中文）
+-   🔀 **双方向默写** — 每词可设置「报中文」（听中文→写英文）或「报英文」（听英文→写中文）
 -   🎯 **随机抽取** — 从已选单词中随机抽取指定数量进行听写
 -   📖 **逐词调整** — 点击单元可进入详情页，逐词开关、切换方向
 -   🔊 **原生语音合成** — macOS/iOS 用系统自带语音，Android/Windows 自动切换中英文
