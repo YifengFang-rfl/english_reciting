@@ -169,9 +169,26 @@ class _GithubFooter extends StatelessWidget {
               ],
             ),
             SizedBox(height: 4),
-            Text(
-              'github.com/YifengFang-rfl/english_reciting',
-              style: TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  CupertinoIcons.link,
+                  size: 13,
+                  color: CupertinoColors.activeBlue,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'github.com/YifengFang-rfl/english_reciting',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: CupertinoColors.activeBlue,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
