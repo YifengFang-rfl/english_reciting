@@ -29,6 +29,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _playing = true;
   bool _paused = false;
   bool _isSpeaking = false;
+  bool _wasSpeakingWhenPaused = false; // 暂停时是否正在朗读
   bool _revealed = false; // 是否亮出单词
   double _pauseSeconds = 8.0;
   Timer? _pauseTimer;
@@ -163,15 +164,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _togglePause() {
     setState(() {
-      _paused = !_paused;
       if (_paused) {
-        widget.tts.stop();
-        _isSpeaking = false;
-      } else {
-        if (_isSpeaking) {
+        // 恢复播放
+        _paused = false;
+        if (_wasSpeakingWhenPaused) {
+          _wasSpeakingWhenPaused = false;
           _speak();
         }
         // 如果在停顿中被恢复，Timer 会自然继续
+      } else {
+        // 暂停播放
+        _paused = true;
+        _wasSpeakingWhenPaused = _isSpeaking;
+        if (_isSpeaking) {
+          widget.tts.stop();
+          _isSpeaking = false;
+        }
       }
     });
   }

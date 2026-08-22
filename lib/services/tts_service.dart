@@ -55,6 +55,8 @@ class TtsService {
   Future<void> init() async {
     try {
       _tts.setCompletionHandler(() {
+        // stop() 会先把 _state 置为 idle，此处拦截避免 stop 误触发 onComplete
+        if (_state != TtsState.playing) return;
         _state = TtsState.idle;
         onComplete?.call();
       });
@@ -70,6 +72,8 @@ class TtsService {
       });
       // 浏览器 TTS 完成回调
       _webTts.onComplete = () {
+        // stop() 会先把 _state 置为 idle，此处拦截避免 stop 误触发 onComplete
+        if (_state != TtsState.playing) return;
         _state = TtsState.idle;
         onComplete?.call();
       };
